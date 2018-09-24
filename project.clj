@@ -7,6 +7,9 @@
                  [org.clojure/core.async "0.4.474"]
                  [com.rpl/specter "1.1.1"]
                  [discljord "0.1.1"]]
-  :jvm-opts ["--add-modules" "java.xml.bind"]
+  :jvm-opts ["--add-modules" "java.xml.bind"
+             "-Dclojure.compiler.disable-locals-clearing=false"
+             "-Dclojure.compiler.elide-meta=\"[:doc :added]\""
+             "-Dclojure.compiler.direct-linking=true"]
   :profiles {:uberjar {:aot :all}}
   :main alexis-texas.core)
