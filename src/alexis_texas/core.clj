@@ -99,7 +99,7 @@
 
 (defmethod handle-event :disconnect
   [event-type event-data]
-  (spit "quotes.edn" (:guilds @state)))
+  (spit "quotes.edn" (pr-str (:guilds @state))))
 
 (defn -main
   "Starts the alexis-texas bot."
@@ -119,7 +119,7 @@
                    :running true})
     (a/go-loop []
       (a/<! (a/timeout 300000))
-      (spit "quotes.edn" (:guilds @state))
+      (spit "quotes.edn" (pr-str (:guilds @state)))
       (when (:running @state)
         (recur)))
     (try (e/message-pump! events #'handle-event)
