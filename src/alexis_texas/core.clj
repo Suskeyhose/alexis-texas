@@ -108,4 +108,6 @@
                    :messaging messaging
                    :guilds init-state})
     (try (e/message-pump! events #'handle-event)
-         (catch (m/stop-connection! messaging)))))
+         (catch Exception e
+           (m/stop-connection! messaging)
+           (throw e)))))
