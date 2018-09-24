@@ -75,7 +75,7 @@
          (when (= id owner)
            (m/send-message! (:messaging @state) channel-id "Goodbye!")
            (a/>!! (:connection @state) [:disconnect])))
-        ((str "^" prefix "quote\\s+add\\s+(\\w+)\\s+(.+)") [user q]
+        ((str "^" prefix "quote\\s+add\\s+(\\S+)\\s+(.+)") [user q]
          (m/send-message! (:messaging @state) channel-id
                           (str "Adding quote to user " user))
          (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
@@ -107,5 +107,5 @@
                    :events events
                    :messaging messaging
                    :guilds init-state})
-    (e/message-pump! events #'handle-event)
-    (m/stop-connection! messaging)))
+    (try (e/message-pump! events #'handle-event)
+         (catch (m/stop-connection! messaging)))))
