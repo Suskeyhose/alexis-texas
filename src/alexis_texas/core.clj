@@ -7,7 +7,8 @@
             [clojure.string :as str]
             [clojure.core.async :as a]
             [clojure.edn :as edn]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s])
+  (:gen-class))
 
 (def token (str/trim (slurp (io/resource "token.txt"))))
 (def owner (str/trim (slurp (io/resource "owner.txt"))))

@@ -7,4 +7,5 @@
                  [org.clojure/core.async "0.4.474"]
                  [com.rpl/specter "1.1.1"]
                  [discljord "0.1.1"]]
-  :jvm-opts ["--add-modules" "java.xml.bind"])
+  :jvm-opts ["--add-modules" "java.xml.bind"]
+  :main alexis-texas.core)
