@@ -8,7 +8,7 @@
             [clojure.core.async :as a]
             [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
-            [clojure.core.logging :as log])
+            [clojure.tools.logging :as log])
   (:gen-class))
 
 (def token (str/trim (slurp (io/resource "token.txt"))))
