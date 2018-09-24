@@ -104,10 +104,11 @@
 (defn -main
   "Starts the alexis-texas bot."
   []
-  (let [init-state (try (edn/read-string (slurp "quotes.edn"))
-                        (catch FileNotFoundException e
-                          (log/info e "No quotes file exists, starting with empty map.")
-                          {}))
+  (let [init-state (or (try (edn/read-string (slurp "quotes.edn"))
+                            (catch FileNotFoundException e
+                              (log/info e "No quotes file exists, starting with empty map.")
+                              nil))
+                       {})
         events (a/chan 100)
         connection (c/connect-bot! token events)
         messaging (m/start-connection! token)]
