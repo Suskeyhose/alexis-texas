@@ -83,13 +83,12 @@
                             (str "Adding quote to user " user))
            (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
           ((str "^" prefix "quote\\s+(\\w+)") [user]
-           (let [q (rand-nth (select [ATOM :guilds guild-id :quotes user ALL] state))]
+           (when-let [q (rand-nth (select [ATOM :guilds guild-id :quotes user ALL] state))]
              (m/send-message! (:messaging @state) channel-id (str user ": " q))))
           ((str "^" prefix "quote") []
-           (let [[user quotes] (rand-nth (select [ATOM :guilds guild-id :quotes ALL]
-                                                 state))
-                 q (rand-nth quotes)]
-             (m/send-message! (:messaging @state) channel-id (str user ": " q))))
+           (when-let [[user quotes] (rand-nth (select [ATOM :guilds guild-id :quotes ALL] state))]
+             (let [q (rand-nth quotes)]
+               (m/send-message! (:messaging @state) channel-id (str user ": " q)))))
           ((str "^" prefix "prefix\\s+(\\S+)") [new-prefix]
            (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
                                                                 new-prefix))
