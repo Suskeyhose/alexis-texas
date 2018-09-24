@@ -66,7 +66,6 @@
 
 (defmethod handle-event :message-create
   [event-type {{:keys [bot id]} :author :keys [content channel-id guild-id] :as event-data}]
-  (println event-data)
   (when-not bot
     (let [prefix (or (select-first [ATOM :guilds guild-id :prefix] state)
                      "!")]
