@@ -5,6 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/core.async "0.4.474"]
+                 [org.clojure/tools.logging "0.4.1"]
                  [com.rpl/specter "1.1.1"]
                  [discljord "0.1.1"]]
   :jvm-opts ["--add-modules" "java.xml.bind"]
