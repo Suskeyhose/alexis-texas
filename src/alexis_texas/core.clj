@@ -30,7 +30,7 @@
       `(if-let [~binding (re-find ~regex ~expr-sym)]
          (do ~@body)
          ~inner-clause))
-    `(do ~@default)))
+    `(do ~@(second (second default)))))
 
 (s/def ::regex-cond-args (s/cat :expr any?
                                 :clauses
@@ -42,7 +42,8 @@
                                              :bindings (s/coll-of symbol?
                                                                   :kind vector?)
                                              :body (s/* any?))))
-                                :default (s/* any?)))
+                                :default (s/? (s/cat :separator (partial = :default)
+                                                     :default (s/* any?)))))
 (defmacro regex-cond
   ""
   {:arglists '([expr]
@@ -72,26 +73,26 @@
       (let [prefix (or (select-first [ATOM :guilds guild-id :prefix] state)
                        "!")]
         (regex-cond content
-                    ((str "^" prefix "disconnect") []
-                     (when (= id owner)
-                       (m/send-message! (:messaging @state) channel-id "Goodbye!")
-                       (a/>!! (:connection @state) [:disconnect])))
-                    ((str "^" prefix "quote\\s+add\\s+(\\S+)\\s+(.+)") [user q]
-                     (m/send-message! (:messaging @state) channel-id
-                                      (str "Adding quote to user " user))
-                     (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
-                    ((str "^" prefix "quote\\s+(\\w+)") [user]
-                     (let [q (rand-nth (select [ATOM :guilds guild-id :quotes user ALL] state))]
-                       (m/send-message! (:messaging @state) channel-id (str user ": " q))))
-                    ((str "^" prefix "quote") []
-                     (let [[user quotes] (rand-nth (select [ATOM :guilds guild-id :quotes ALL]
-                                                           state))
-                           q (rand-nth quotes)]
-                       (m/send-message! (:messaging @state) channel-id (str user ": " q))))
-                    ((str "^" prefix "prefix\\s+(\\S+)") [new-prefix]
-                     (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
-                                                                          new-prefix))
-                     (setval [ATOM :guilds guild-id :prefix] new-prefix state)))))
+          ((str "^" prefix "disconnect") []
+           (when (= id owner)
+             (m/send-message! (:messaging @state) channel-id "Goodbye!")
+             (a/>!! (:connection @state) [:disconnect])))
+          ((str "^" prefix "quote\\s+add\\s+(\\S+)\\s+(.+)") [user q]
+           (m/send-message! (:messaging @state) channel-id
+                            (str "Adding quote to user " user))
+           (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
+          ((str "^" prefix "quote\\s+(\\w+)") [user]
+           (let [q (rand-nth (select [ATOM :guilds guild-id :quotes user ALL] state))]
+             (m/send-message! (:messaging @state) channel-id (str user ": " q))))
+          ((str "^" prefix "quote") []
+           (let [[user quotes] (rand-nth (select [ATOM :guilds guild-id :quotes ALL]
+                                                 state))
+                 q (rand-nth quotes)]
+             (m/send-message! (:messaging @state) channel-id (str user ": " q))))
+          ((str "^" prefix "prefix\\s+(\\S+)") [new-prefix]
+           (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
+                                                                new-prefix))
+           (setval [ATOM :guilds guild-id :prefix] new-prefix state)))))
     (catch Exception e
       (log/error e "Exception caught in message-create handler"))))
 
