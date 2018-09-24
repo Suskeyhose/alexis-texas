@@ -8,4 +8,5 @@
                  [com.rpl/specter "1.1.1"]
                  [discljord "0.1.1"]]
   :jvm-opts ["--add-modules" "java.xml.bind"]
+  :profiles {:uberjar {:aot :all}}
   :main alexis-texas.core)
