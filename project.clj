@@ -9,6 +9,6 @@
                  [discljord "0.1.1"]]
   :jvm-opts ["--add-modules" "java.xml.bind"]
   :profiles {:uberjar {:aot :all
-                       :global-vars {*compiler-options* {:elide-meta [:doc :added]
-                                                         :direct-linking true}}}}
+                       :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
+                                  "-Dclojure.compiler.direct-linking=true"]}}
   :main alexis-texas.core)
