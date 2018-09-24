@@ -9,6 +9,7 @@
             [clojure.edn :as edn]
             [clojure.spec.alpha :as s]
             [clojure.tools.logging :as log])
+  (:import java.io.FileNotFoundException)
   (:gen-class))
 
 (def token (str/trim (slurp (io/resource "token.txt"))))
@@ -98,12 +99,15 @@
 
 (defmethod handle-event :disconnect
   [event-type event-data]
-  (spit (io/resource "quotes.edn") (:guilds @state)))
+  (spit "quotes.edn" (:guilds @state)))
 
 (defn -main
   "Starts the alexis-texas bot."
   []
-  (let [init-state (edn/read-string (slurp (io/resource "quotes.edn")))
+  (let [init-state (try (edn/read-string (slurp "quotes.edn"))
+                        (catch FileNotFoundException e
+                          (log/info e "No quotes file exists, starting with empty map.")
+                          {}))
         events (a/chan 100)
         connection (c/connect-bot! token events)
         messaging (m/start-connection! token)]
@@ -114,7 +118,7 @@
                    :running true})
     (a/go-loop []
       (a/<! (a/timeout 300000))
-      (spit (io/resource "quotes.edn") (:guilds @state))
+      (spit "quotes.edn" (:guilds @state))
       (when (:running @state)
         (recur)))
     (try (e/message-pump! events #'handle-event)
