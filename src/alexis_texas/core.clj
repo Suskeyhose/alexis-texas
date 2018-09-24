@@ -14,8 +14,9 @@
 
 (def token (str/trim (slurp (io/resource "token.txt"))))
 (def owner (str/trim (slurp (io/resource "owner.txt"))))
+(def bot-id (str/trim (slurp (io/resource "bot.txt"))))
 
-(def state (atom nil))
+(defonce state (atom nil))
 
 (defn- regex-cond-helper
   [expr-sym clauses default]
@@ -67,8 +68,39 @@
 (defmethod handle-event :default
   [event-type event-data])
 
+(defn cleanse-regex
+  "Takes in a string, and outputs a string with the appropriate escapes so that it doesn't break."
+  [s]
+  s)
+
+(defn display-help-message
+  "Takes a core.async channel for communicating with the messaging process,
+  the channel ID on which to send a help message, and the current guild's prefix,
+  and sends a help message to Discord."
+  [messaging channel-id prefix]
+  (m/send-message! messaging channel-id
+                   (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
+                        " track of funny and interesting quotes in your server.\n\n"
+
+                        "I only have a couple of commands to remember.\n"
+                        "`" prefix "help` displays this message!\n"
+                        "`" prefix "quote` will get a random quote from your server's list.\n"
+                        "`" prefix "quote <name>` will get a random quote said by the"
+                        " named user.\n"
+                        "`" prefix "quote add <name> <quote>` will add a new quote"
+                        " to your server.\n"
+                        "`" prefix "quote remove <name> <quote>` removes the given quote."
+                        " Later this will be done by an ID instead of the copied and"
+                        " pasted quote.\n\n"
+
+                        "If you are an admin on the server, feel free to make"
+                        " use of these additional commands:\n"
+                        "`" prefix "prefix <new prefix>` -- NOT YET IMPLEMENTED\n")))
+
 (defmethod handle-event :message-create
-  [event-type {{:keys [bot id]} :author :keys [content channel-id guild-id] :as event-data}]
+  [event-type {{:keys [bot id]} :author
+               {:keys [roles]} :member
+               :keys [content channel-id guild-id mentions] :as event-data}]
   (try
     (when-not bot
       (let [prefix (or (select-first [ATOM :guilds guild-id :prefix] state)
@@ -78,21 +110,59 @@
            (when (= id owner)
              (m/send-message! (:messaging @state) channel-id "Goodbye!")
              (a/>!! (:connection @state) [:disconnect])))
+          ((str "^" prefix "admin\\s+add\\s+(\\d+)") [role-id]
+           (when (or (= id owner)
+                     (some (partial contains? roles)
+                           (select [ATOM :guilds guild-id :admin-roles ALL] state)))
+             (transform [ATOM :guilds guild-id :admin-roles]
+                        #(conj % role-id) state)))
+          ((str "^" prefix "admin\\s+remove\\s+(\\d+)") [role-id]
+           (when (or (= id owner)
+                     (some (partial contains? roles)
+                           (select [ATOM :guilds guild-id :admin-roles ALL] state)))
+             (transform [ATOM :guilds guild-id :admin-roles]
+                        #(filter (partial not= role-id) %) state)))
           ((str "^" prefix "quote\\s+add\\s+(\\S+)\\s+(.+)") [user q]
            (m/send-message! (:messaging @state) channel-id
                             (str "Adding quote to user " user))
            (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
+          ((str "^" prefix "quote\\s+remove\\s+(\\S+)\\s+(.+)") [user q]
+           (m/send-message! (:messaging @state) channel-id
+                            (str "Removing quote from user " user))
+           (transform [ATOM :guilds guild-id :quotes user] #(filter (partial not= q) %) state))
           ((str "^" prefix "quote\\s+(\\w+)") [user]
-           (when-let [q (rand-nth (select [ATOM :guilds guild-id :quotes user ALL] state))]
-             (m/send-message! (:messaging @state) channel-id (str user ": " q))))
-          ((str "^" prefix "quote") []
-           (when-let [[user quotes] (rand-nth (select [ATOM :guilds guild-id :quotes ALL] state))]
-             (let [q (rand-nth quotes)]
-               (m/send-message! (:messaging @state) channel-id (str user ": " q)))))
+           (let [quotes-vec (select [ATOM :guilds guild-id :quotes user ALL] state)]
+             (if-not (empty? quotes-vec)
+               (m/send-message! (:messaging @state) channel-id
+                                (str user ": " (rand-nth quotes-vec)))
+               (m/send-message! (:messaging @state) channel-id
+                                (str "No quotes found for user " user "!")))))
+          ((str "^" prefix "quote\\s+$") []
+           (let [quotes-vec (filter #(pos? (count (second %)))
+                                    (select [ATOM :guilds guild-id :quotes ALL] state))]
+             (if-not (empty? quotes-vec)
+               (let [[user quotes] (rand-nth quotes-vec)]
+                 (m/send-message! (:messaging @state) channel-id
+                                  (str user ": " (rand-nth quotes))))
+               (m/send-message! (:messaging @state) channel-id
+                                "No quotes in this server! Get to talking!"))))
           ((str "^" prefix "prefix\\s+(\\S+)") [new-prefix]
-           (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
-                                                                new-prefix))
-           (setval [ATOM :guilds guild-id :prefix] new-prefix state)))))
+           (if (or (= id owner)
+                   (some (partial contains? roles)
+                         (select [ATOM :guilds guild-id :admin-roles ALL] state)))
+             (do (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
+                                                                      new-prefix))
+                 (setval [ATOM :guilds guild-id :prefix] (cleanse-regex new-prefix) state))
+             (m/send-message! (:messaging @state) channel-id
+                              "You don't have permissions to change that!")))
+          ((str "^" prefix "help") []
+           (display-help-message (:messaging @state) channel-id
+                                 (select-first [ATOM :guilds guild-id :prefix] state)))
+          :default
+          (when (and (= (count mentions) 1)
+                     (= (:id (first mentions)) bot-id))
+            (display-help-message (:messaging @state) channel-id
+                                  (select-first [ATOM :guilds guild-id :prefix] state))))))
     (catch Exception e
       (log/error e "Exception caught in message-create handler"))))
 
@@ -123,6 +193,7 @@
         (recur)))
     (try (e/message-pump! events #'handle-event)
          (catch Exception e
-           (m/stop-connection! messaging)
            (swap! state assoc :running false)
-           (throw e)))))
+           (throw e)))
+    (m/stop-connection! messaging))
+  (shutdown-agents))
