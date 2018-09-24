@@ -109,8 +109,15 @@
     (reset! state {:connection connection
                    :events events
                    :messaging messaging
-                   :guilds init-state})
+                   :guilds init-state
+                   :running true})
+    (a/go-loop []
+      (a/<! (a/timeout 300000))
+      (spit (io/resource "quotes.edn") (:guilds @state))
+      (when (:running @state)
+        (recur)))
     (try (e/message-pump! events #'handle-event)
          (catch Exception e
            (m/stop-connection! messaging)
+           (swap! state assoc :running false)
            (throw e)))))
