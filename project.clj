@@ -11,5 +11,6 @@
   :jvm-opts ["--add-modules" "java.xml.bind"]
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
-                                  "-Dclojure.compiler.direct-linking=true"]}}
+                                  "-Dclojure.compiler.direct-linking=true"]}
+             :dev {:dependencies [[org.clojure/test.check "0.9.0"]]}}
   :main alexis-texas.core)
