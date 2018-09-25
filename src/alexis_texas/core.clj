@@ -191,5 +191,4 @@
         (recur)))
     (e/message-pump! events #'handle-event)
     (swap! state assoc :running false)
-    (m/stop-connection! messaging))
-  (shutdown-agents))
+    (m/stop-connection! messaging)))

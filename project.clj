@@ -7,7 +7,7 @@
                  [org.clojure/core.async "0.4.474"]
                  [org.clojure/tools.logging "0.4.1"]
                  [com.rpl/specter "1.1.1"]
-                 [org.suskalo/discljord "0.1.4"]]
+                 [org.suskalo/discljord "0.1.5"]]
   :jvm-opts ["--add-modules" "java.xml.bind"]
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
