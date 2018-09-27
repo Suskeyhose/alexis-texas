@@ -131,7 +131,7 @@
         (#"disconnect"
           (when (= id owner)
             (m/send-message! (:messaging @state) channel-id "Goodbye!")
-            (a/>!! (:connection @state) [:disconnect])))
+            (c/disconnect-bot! (:connection @state))))
         (#"admin\s+add\s+(\d+)" [role-id]
           (when (or (= id owner)
                     (some (partial contains? roles)
@@ -186,6 +186,8 @@
 
 (defmethod handle-event :disconnect
   [event-type event-data]
+  (m/stop-connection! (:messaging @state))
+  (swap! state assoc :running false)
   (spit "quotes.edn" (pr-str (:guilds @state))))
 
 (defn -main
@@ -210,6 +212,4 @@
       (spit "quotes.edn" (pr-str (:guilds @state)))
       (when (:running @state)
         (recur)))
-    (e/message-pump! events #'handle-event)
-    (swap! state assoc :running false)
-    (m/stop-connection! messaging)))
+    (e/message-pump! events #'handle-event)))
