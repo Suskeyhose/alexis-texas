@@ -28,7 +28,7 @@
                   :regex (second regex)
                   :else `(re-pattern ~(second regex)))
           binding (if (empty? bindings)
-                    '_
+                    (gensym "_")
                     (into `[_#] bindings))]
       `(if-let [~binding (re-find ~regex ~expr-sym)]
          (do ~@body)
