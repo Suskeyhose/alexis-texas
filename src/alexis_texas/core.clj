@@ -186,6 +186,7 @@
 
 (defmethod handle-event :disconnect
   [event-type event-data]
+  (log/fatal "Disconnecting from Discord.")
   (m/stop-connection! (:messaging @state))
   (swap! state assoc :running false)
   (spit "quotes.edn" (pr-str (:guilds @state))))
