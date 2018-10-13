@@ -229,3 +229,14 @@
       (when (:running @state)
         (recur)))
     (e/message-pump! events #'handle-event)))
+
+(defn start-bot!
+  []
+  (a/thread (-main)))
+
+(defn stop-bot!
+  []
+  (c/disconnect-bot! @*connection*)
+  (reset! *events* nil)
+  (reset! *connection* nil)
+  (reset! *messaging* nil))
