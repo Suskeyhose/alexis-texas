@@ -13,9 +13,20 @@
            java.util.regex.Pattern)
   (:gen-class))
 
-(def token (str/trim (slurp (io/resource "token.txt"))))
-(def owner (str/trim (slurp (io/resource "owner.txt"))))
-(def bot-id (str/trim (slurp (io/resource "bot.txt"))))
+(def token (-> "token.txt"
+               io/resource
+               slurp
+               str/trim))
+
+(def owner (-> "owner.txt"
+               io/resource
+               slurp
+               str/trim))
+
+(def bot-id (-> "bot.txt"
+                io/resource
+                slurp
+                str/trim))
 
 (defonce state (atom nil))
 
