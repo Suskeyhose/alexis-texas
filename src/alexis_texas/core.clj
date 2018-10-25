@@ -1,34 +1,19 @@
 (ns alexis-texas.core
   (:use com.rpl.specter)
-  (:require [discljord.connections :as c]
-            [discljord.messaging :as m]
-            [discljord.events :as e]
-            [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.core.async :as a]
-            [clojure.edn :as edn]
-            [clojure.spec.alpha :as s]
-            [clojure.tools.logging :as log])
-  (:import java.io.FileNotFoundException
-           java.util.regex.Pattern)
+  (:require
+   [clojure.core.async :as a]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.spec.alpha :as s]
+   [clojure.string :as str]
+   [clojure.tools.logging :as log]
+   [discljord.connections :as c]
+   [discljord.events :as e]
+   [discljord.messaging :as m])
+  (:import
+   (java.io FileNotFoundException)
+   (java.util.regex Pattern))
   (:gen-class))
-
-(def token (-> "token.txt"
-               io/resource
-               slurp
-               str/trim))
-
-(def owner (-> "owner.txt"
-               io/resource
-               slurp
-               str/trim))
-
-(def bot-id (-> "bot.txt"
-                io/resource
-                slurp
-                str/trim))
-
-(defonce state (atom nil))
 
 (defn- regex-cond-helper
   [expr-sym clauses default]
@@ -69,38 +54,6 @@
 (s/fdef regex-cond
   :args ::regex-cond-args)
 
-(defmulti handle-event
-  ""
-  (fn [event-type event-data]
-    event-type))
-
-(defmethod handle-event :default
-  [event-type event-data])
-
-(defn display-help-message
-  "Takes a core.async channel for communicating with the messaging process,
-  the channel ID on which to send a help message, and the current guild's prefix,
-  and sends a help message to Discord."
-  [messaging channel-id prefix]
-  (m/send-message! messaging channel-id
-                   (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
-                        " track of funny and interesting quotes in your server.\n\n"
-
-                        "I only have a couple of commands to remember.\n"
-                        "`" prefix "help` displays this message!\n"
-                        "`" prefix "quote` will get a random quote from your server's list.\n"
-                        "`" prefix "quote <name>` will get a random quote said by the"
-                        " named user.\n"
-                        "`" prefix "quote add <name> <quote>` will add a new quote"
-                        " to your server.\n"
-                        "`" prefix "quote remove <name> <quote>` removes the given quote."
-                        " Later this will be done by an ID instead of the copied and"
-                        " pasted quote.\n\n"
-
-                        "If you are an admin on the server, feel free to make"
-                        " use of these additional commands:\n"
-                        "`" prefix "prefix <new prefix>` -- NOT YET IMPLEMENTED\n")))
-
 (s/def ::commands-clause (s/cat :command (s/alt :string string?
                                                 :regex (partial instance? java.util.regex.Pattern))
                                 :bindings (s/? (s/coll-of symbol?
@@ -131,10 +84,54 @@
 (s/fdef commands
   :args ::commands-args)
 
+(defn display-help-message
+  "Takes a core.async channel for communicating with the messaging process,
+  the channel ID on which to send a help message, and the current guild's prefix,
+  and sends a help message to Discord."
+  [messaging channel-id prefix]
+  (m/send-message! messaging channel-id
+                   (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
+                        " track of funny and interesting quotes in your server.\n\n"
+
+                        "I only have a couple of commands to remember.\n"
+                        "`" prefix "help` displays this message!\n"
+                        "`" prefix "quote` will get a random quote from your server's list.\n"
+                        "`" prefix "quote <name>` will get a random quote said by the"
+                        " named user.\n"
+                        "`" prefix "quote add <name> <quote>` will add a new quote"
+                        " to your server.\n"
+                        "`" prefix "quote remove <name> <quote>` removes the given quote."
+                        " Later this will be done by an ID instead of the copied and"
+                        " pasted quote.\n\n"
+
+                        "If you are an admin on the server, feel free to make"
+                        " use of these additional commands:\n"
+                        "`" prefix "prefix <new prefix>` -- NOT YET IMPLEMENTED\n")))
+
+(defn resource
+  [path]
+  (-> path
+      io/resource
+      slurp
+      str/trim))
+
+(def owner (resource "owner.txt"))
+(def bot-id (resource "bot.txt"))
+
+(defonce state (atom nil))
+
+(defmulti handle-event
+  ""
+  (fn [event-type event-data]
+    event-type))
+
+(defmethod handle-event :default
+  [event-type event-data])
+
 (defmethod handle-event :message-create
-  [event-type {{:keys [bot id]} :author
-               {:keys [roles]} :member
-               :keys [content channel-id guild-id mentions] :as event-data}]
+  [_ {{:keys [bot id]} :author
+      {:keys [roles]} :member
+      :keys [content channel-id guild-id mentions] :as event-data}]
   (when-not bot
     (let [prefix (or (select-first [ATOM :guilds guild-id :prefix] state)
                      "!")]
@@ -143,22 +140,10 @@
           (when (= id owner)
             (m/send-message! (:messaging @state) channel-id "Goodbye!")
             (c/disconnect-bot! (:connection @state))))
-        (#"admin\s+add\s+(\d+)" [role-id]
-          (when (or (= id owner)
-                    (some (partial contains? roles)
-                          (select [ATOM :guilds guild-id :admin-roles ALL] state)))
-            (transform [ATOM :guilds guild-id :admin-roles]
-                       #(conj % role-id) state)))
-        (#"admin\s+remove\s+(\d+)" [role-id]
-          (when (or (= id owner)
-                    (some (partial contains? roles)
-                          (select [ATOM :guilds guild-id :admin-roles ALL] state)))
-            (transform [ATOM :guilds guild-id :admin-roles]
-                       #(filter (partial not= role-id) %) state)))
         (#"quote\s+add\s+(\S+)\s+([\s\S]+)" [user q]
           (m/send-message! (:messaging @state) channel-id
                            (str "Adding quote to user " user))
-          (transform [ATOM :guilds guild-id :quotes user] #(conj % q) state))
+          (transform [ATOM :guilds guild-id :quotes user] #(conj (or % []) q) state))
         (#"quote\s+remove\s+(\S+)\s+([\s\S]+)" [user q]
           (m/send-message! (:messaging @state) channel-id
                            (str "Removing quote from user " user))
@@ -179,15 +164,60 @@
                                  (str user ": " (rand-nth quotes))))
               (m/send-message! (:messaging @state) channel-id
                                "No quotes in this server! Get to talking!"))))
+        ;; TODO: Make this queue up a new event which waits on getting if the user has a role
         (#"prefix\s+(\S+)" [new-prefix]
           (if (or (= id owner)
-                  (some (partial contains? roles)
-                        (select [ATOM :guilds guild-id :admin-roles ALL] state)))
-            (do (m/send-message! (:messaging @state) channel-id (str "Using new prefix: "
-                                                                     new-prefix))
+                  ;; has administrator priviliges?
+                  )
+            (do (m/send-message! (:messaging @state) channel-id
+                                 (str "Using new prefix: " new-prefix))
                 (setval [ATOM :guilds guild-id :prefix] new-prefix state))
             (m/send-message! (:messaging @state) channel-id
                              "You don't have permissions to change that!")))
+        (#"blacklist\s+add\s+regex\s+([\S\s]+)" [blacklist-item]
+          (when (or (= id owner)
+                    ;; has administrator priviliges?
+                    )
+            (transform [ATOM :guilds guild-id :blacklist]
+                       #(conj (or % []) (re-pattern blacklist-item))
+                       state)
+            (m/send-message! (:messaging @state) channel-id
+                             "Adding new blacklisted pattern")))
+        (#"blacklist\s+add\s+([\S\s]+)" [blacklist-item]
+          (when (or (= id owner)
+                    ;; has administrator priviliges?
+                    )
+            (transform [ATOM :guilds guild-id :blacklist]
+                       #(conj (or % []) blacklist-item)
+                       state)
+            (m/send-message! (:messaging @state) channel-id
+                             "Adding new blacklisted name")))
+        (#"blacklist\s+list"
+          (when (or (= id owner)
+                    )
+            (m/send-message! (:messaging @state) channel-id
+                             (apply str "Blacklisted names:\n"
+                                    (interpose
+                                     "\n"
+                                     (map-indexed
+                                      #(str %1 ": " %2)
+                                      (select [ATOM :guilds guild-id :blacklist ALL]
+                                              state)))))))
+        (#"blacklist\s+clear"
+          (when (or (= id owner)
+                    )
+            (setval [ATOM :guilds guild-id :blacklist ALL] NONE state)
+            (m/send-message! (:messaging @state) channel-id
+                             "Clearing the blacklist!")))
+        (#"blacklist\s+remove\s+(\d+)" [idx]
+          (when (or (= id owner)
+                    )
+            (let [num (Long/parseLong idx)
+                  item (select-first [ATOM :guilds guild-id :blacklist num] state)]
+              (setval [ATOM :guilds guild-id :blacklist num] NONE state)
+              (m/send-message! (:messaging @state) channel-id
+                               (str "Removing blacklist item: "
+                                    item)))))
         (#"help"
           (display-help-message (:messaging @state) channel-id prefix))
         :default
@@ -195,12 +225,37 @@
                    (= (:id (first mentions)) bot-id))
           (display-help-message (:messaging @state) channel-id prefix))))))
 
+(defmethod handle-event :guild-member-add
+  [_ {:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
+  (when-not bot
+    (when-let  [blacklisted (some #(if (instance? java.util.regex.Pattern %)
+                                     (re-find % username)
+                                     (when (str/includes? (str/lower-case username)
+                                                          (str/lower-case %))
+                                       %))
+                                  (select [ATOM :guilds guild-id :blacklist ALL] state))]
+      (m/create-guild-ban! (:messaging @state) guild-id id
+                           :reason (format
+                                    "Alexis Texas auto-ban: had blacklisted pattern %s, in username \"%s\""
+                                    (prn-str blacklisted)
+                                    username)))))
+
+(defmethod handle-event :guild-members-chunk
+  [_ event-data]
+  (prn event-data))
+
+(defmethod handle-event :guild-member-update
+  [_ event-data]
+  )
+
 (defmethod handle-event :disconnect
   [event-type event-data]
   (log/fatal "Disconnecting from Discord.")
   (m/stop-connection! (:messaging @state))
   (swap! state assoc :running false)
   (spit "quotes.edn" (pr-str (:guilds @state))))
+
+(def token (resource "token.txt"))
 
 (defonce ^:dynamic *events* (atom nil))
 (defonce ^:dynamic *connection* (atom nil))
@@ -222,6 +277,8 @@
                    :events events
                    :messaging messaging
                    :guilds init-state
+                   :roles {}
+                   :members {}
                    :running true})
     (a/go-loop []
       (a/<! (a/timeout 300000))
