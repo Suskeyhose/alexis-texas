@@ -1,15 +1,23 @@
 #+TITLE:Mafia Bot Design
 #+AUTHOR:Suskeyhose
+#+OPTIONS: toc:1 num:2
 * Required API Features
  - Send and recieve messages
  - Create new DM channels, and send and recieve messages on them
  - Check permissions of users
  - Start asynchronous processes to handle time passing
+
 * Features
 ** Run Multiple Games at Once in Different Servers
+** Leaderboards
+   When a game finishes, each surviving player will be awarded one point, and players can view the leaderboards which show which players have won the most games, how many games they've won, and how many games they've played. There should be separate monthly and all-time leaderboards.
+   
+   :WORLD_LEADERBOARDS:
+   Also possibly consider making leaderboards that are cross-guild, with the usernames (but not discriminators or user IDs) of other players who have played.
+   :END:
    
 * Game Flow
-  Section should illustrate how a typical game will be played, with notes about some possible features and less typical use cases.
+  Illustrates how a typical game will be played, with notes about some possible features and less typical use cases.
   
   Currently, all game state is managed internally by the bot, and none of it is visible from discord. Perhaps consider making it so that it will use specific roles that it creates for alive and dead players, which it assigns as necessary to those playing, and then removes all the roles once it's done? If that is how it works though, it'll need to have permissions for creating and modifying roles.
 ** Game Start
@@ -38,11 +46,3 @@
 ** Endgame
    Once there are no more mafia, or no more villagers, the game is complete and the bot should display a message with information about how the game went, how many nights the losing team lasted, who was Mafia or other roles, etc.
    
-*** Scoring?
-    Consider giving points to people based on the usage of their abilities? Make it so plain villagers gain points for voting for mafia members to lynch, so that it will balance out?
-    
-    Could have things like an investigator who gains points whenever a mafia is killed, but only if they had already discovered the mafia's identity. And then perhaps they lose points when someone who is not mafia is killed who they have investigated.
-    
-    Mafia gain points for surviving, and each non-mafia person killed. If they personally kill someone with a special role, they gain more points.
-    
-    Medics gain points for successfully protecting villagers, and lose points for trying to protect mafia?
