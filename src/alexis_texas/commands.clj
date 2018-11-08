@@ -32,7 +32,7 @@
                         " Later this will be done by an ID instead of the copied and"
                         " pasted quote.\n\n"
                         (when admin?
-                          (str "If you are an admin on the server, feel free to make"
+                          (str "Since you are an admin on the server, feel free to make"
                                " use of these additional commands:\n"
                                "`" prefix "prefix <new prefix>` changes the bot's prefix for this server.\n"
                                "`" prefix "blacklist add <name>` bans members joining the server with this in"
