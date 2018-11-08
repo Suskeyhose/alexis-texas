@@ -87,17 +87,14 @@
 
 (defmethod handle-event :guild-create
   [_ guild]
-  (println "Guild create:" guild)
   (update-guild guild))
 
 (defmethod handle-event :guild-update
   [_ guild]
-  (println "Guild update:" guild)
   (update-guild guild))
 
 (defmethod handle-event :guild-remove
   [_ {:keys [id unavailable] :as event}]
-  (println "Guild remove:" event)
   (when-not unavailable
     (setval [ATOM :guilds (keypath id)] NONE state)
     (setval [ATOM :users ALL :guilds (keypath id)] NONE state)
@@ -105,7 +102,6 @@
 
 (defmethod handle-event :guild-member-add
   [_ {:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
-  (println "Guild member add:" event)
   (when-not bot
     (if-let  [blacklisted (some #(if (instance? java.util.regex.Pattern %)
                                    (re-find % username)
@@ -128,7 +124,6 @@
 
 (defmethod handle-event :guild-members-chunk
   [_ {:keys [guild-id members] :as event}]
-  (println "Guild members chunk:" event)
   (let [members (into {}
                       members-xf
                       members)]
@@ -139,7 +134,6 @@
   [_ {:keys [guild-id roles nick]
       {:keys [id]} :user
       :as event}]
-  (println "Guild member update:" event)
   (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :roles] roles state)
   (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :nick] nick state))
 
@@ -150,16 +144,21 @@
 
 (defmethod handle-event :guild-role-create
   [_ {:keys [guild-id role]}]
-  )
+  (setval [ATOM :roles (keypath guild-id) (keypath (:id role))] (dissoc role :id) state))
 
 (defmethod handle-event :guild-role-update
   [_ {:keys [guild-id role]}]
-  )
+  (transform [ATOM :roles (keypath guild-id) (keypath (:id role))]
+             #(merge % (dissoc role :id))
+             state))
 
 (defmethod handle-event :guild-role-delete
   [_ {:keys [guild-id role-id]}]
-  )
+  (setval [ATOM :roles (keypath guild-id) (keypath role-id)] NONE state)
+  (transform [ATOM :users ALL :guilds (keypath guild-id) :roles]
+             (partial remove #(= % role-id))
+             state))
 
 (defmethod handle-event :user-update
-  [_ user]
-  )
+  [_ {:keys [id] :as user}]
+  (transform [ATOM :users (keypath id)] #(merge % (dissoc user :id)) state))
