@@ -2,7 +2,6 @@
   (:require
    [alexis-texas.commands]
    [alexis-texas.events :refer [handle-event state]]
-   [alexis-texas.permissions]
    [alexis-texas.util :refer [resource]]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
