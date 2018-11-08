@@ -38,8 +38,9 @@
 
 (defn has-permission?
   [perm perms-int]
-  (when-let [bit (permissions-bit perm)]
-    (not (zero? (bit-and bit perms-int)))))
+  (when perms-int
+    (when-let [bit (permissions-bit perm)]
+      (not (zero? (bit-and bit perms-int))))))
 
 (defn has-permissions?
   [perms perms-int]
@@ -52,7 +53,9 @@
         roles-permissions (map (fn [[_ {:keys [permissions]}]]
                                  permissions)
                                (select-keys (get (:roles @state) guild-id) user-roles))
-        permissions-int (apply bit-or roles-permissions)]
+        permissions-int (if (> (count roles-permissions) 1)
+                          (apply bit-or roles-permissions)
+                          (first roles-permissions))]
     (has-permission? perm permissions-int)))
 
 (defn user-has-permissions?
