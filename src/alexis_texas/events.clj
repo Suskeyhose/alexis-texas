@@ -3,14 +3,10 @@
    com.rpl.specter)
   (:require
    [clojure.string :as str]
+   [clojure.tools.logging :as log]
    [discljord.messaging :as m]))
 
 (defonce state (atom nil))
-
-(defmulti handle-event
-  ""
-  (fn [event-type event-data]
-    event-type))
 
 (def ^:private roles-xf (map (fn [role]
                                [(:id role)
@@ -38,23 +34,15 @@
     (doseq [[user-id member] members]
       (setval [ATOM :users (keypath user-id) :guilds (keypath id)] member state))))
 
-(defmethod handle-event :guild-create
-  [_ guild]
-  (update-guild guild))
-
-(defmethod handle-event :guild-update
-  [_ guild]
-  (update-guild guild))
-
-(defmethod handle-event :guild-remove
-  [_ {:keys [id unavailable] :as event}]
+(defn remove-guild
+  [{:keys [id unavailable] :as event}]
   (when-not unavailable
     (setval [ATOM :guilds (keypath id)] NONE state)
     (setval [ATOM :users ALL :guilds (keypath id)] NONE state)
     (setval [ATOM :roles (keypath id)] NONE state)))
 
-(defmethod handle-event :guild-member-add
-  [_ {:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
+(defn add-member-info
+  [{:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
   (when-not bot
     (if-let  [blacklisted (some #(if (instance? java.util.regex.Pattern %)
                                    (re-find % username)
@@ -75,43 +63,47 @@
           (setval [ATOM :users (keypath id)] (dissoc user :id) state))
         (setval [ATOM :users (keypath id) :guilds (keypath guild-id)] member state)))))
 
-(defmethod handle-event :guild-members-chunk
-  [_ {:keys [guild-id members] :as event}]
+(defn add-guild-members
+  [{:keys [guild-id members] :as event}]
   (let [members (into {}
                       members-xf
                       members)]
     (doseq [[user-id member] members]
       (setval [ATOM :users (keypath user-id) :guilds (keypath guild-id)] member state))))
 
-(defmethod handle-event :guild-member-update
-  [_ {:keys [guild-id roles nick]
-      {:keys [id]} :user
-      :as event}]
+(defn update-guild-member
+  [{:keys [guild-id roles nick] {:keys [id]} :user :as event}]
   (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :roles] roles state)
   (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :nick] nick state))
 
-(defmethod handle-event :guild-member-remove
-  [_ {:keys [guild-id]
-      {:keys [id]} :user}]
+(defn remove-guild-member
+  [{:keys [guild-id] {:keys [id]} :user}]
   (setval [ATOM :users (keypath id) :guilds (keypath guild-id)] NONE state))
 
-(defmethod handle-event :guild-role-create
-  [_ {:keys [guild-id role]}]
+(defn add-role
+  [{:keys [guild-id role]}]
   (setval [ATOM :roles (keypath guild-id) (keypath (:id role))] (dissoc role :id) state))
 
-(defmethod handle-event :guild-role-update
-  [_ {:keys [guild-id role]}]
+(defn update-role
+  [{:keys [guild-id role]}]
   (transform [ATOM :roles (keypath guild-id) (keypath (:id role))]
              #(merge % (dissoc role :id))
              state))
 
-(defmethod handle-event :guild-role-delete
-  [_ {:keys [guild-id role-id]}]
+(defn delete-role
+  [{:keys [guild-id role-id]}]
   (setval [ATOM :roles (keypath guild-id) (keypath role-id)] NONE state)
   (transform [ATOM :users ALL :guilds (keypath guild-id) :roles]
              (partial remove #(= % role-id))
              state))
 
-(defmethod handle-event :user-update
-  [_ {:keys [id] :as user}]
+(defn update-user
+  [{:keys [id] :as user}]
   (transform [ATOM :users (keypath id)] #(merge % (dissoc user :id)) state))
+
+(defn disconnect-bot
+  [event-data]
+  (log/fatal "Disconnecting from Discord.")
+  (m/stop-connection! (:messaging @state))
+  (swap! state assoc :running false)
+  (spit "quotes.edn" (pr-str (:state @state))))

@@ -1,7 +1,9 @@
 (ns alexis-texas.core
   (:require
-   [alexis-texas.commands]
-   [alexis-texas.events :refer [handle-event state]]
+   [alexis-texas.commands :refer [process-message]]
+   [alexis-texas.events :refer [add-guild-members add-member-info add-role delete-role disconnect-bot
+                                remove-guild remove-guild-member update-guild update-guild-member
+                                update-role update-user state]]
    [alexis-texas.util :refer [resource]]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
@@ -20,8 +22,29 @@
 (defonce ^:dynamic *connection* (atom nil))
 (defonce ^:dynamic *messaging* (atom nil))
 
-(defn -main
-  "Starts the alexis-texas bot."
+(defn handler
+  [& {:as handlers}]
+  (fn [event-type event-data]
+    (doseq [f (event-type handlers)]
+      (f event-data))))
+
+(def handle-event
+  (handler
+   :guild-create [#'update-guild]
+   :guild-update [#'update-guild]
+   :guild-remove [#'remove-guild]
+   :guild-member-add [#'add-member-info]
+   :guild-members-chunk [#'add-guild-members]
+   :guild-member-update [#'update-guild-member]
+   :guild-member-remove [#'remove-guild-member]
+   :guild-role-create [#'add-role]
+   :guild-role-update [#'update-role]
+   :guild-role-delete [#'delete-role]
+   :user-update [#'update-user]
+   :message-create [#'process-message]
+   :disconnect [#'disconnect-bot]))
+
+(defn run-bot
   []
   (let [init-state (or (try (edn/read-string (slurp "quotes.edn"))
                             (catch FileNotFoundException e
@@ -47,13 +70,20 @@
         (recur)))
     (e/message-pump! events #'handle-event)))
 
+(defn -main
+  "Starts the alexis-texas bot."
+  []
+  (run-bot)
+  (shutdown-agents))
+
 (defn start-bot!
   []
-  (a/thread (-main)))
+  (a/thread (run-bot)))
 
 (defn stop-bot!
   []
-  (c/disconnect-bot! @*connection*)
+  (when @*connection*
+    (c/disconnect-bot! @*connection*))
   (reset! *events* nil)
   (reset! *connection* nil)
   (reset! *messaging* nil))
