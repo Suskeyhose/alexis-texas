@@ -15,43 +15,75 @@
   (:import
    (java.util.regex Pattern)))
 
-(defn display-help-message
+(defn help-message
   "Takes a core.async channel for communicating with the messaging process,
   the channel ID on which to send a help message, and the current guild's prefix,
   and sends a help message to Discord."
-  [messaging channel-id prefix admin?]
-  (m/send-message! messaging channel-id
-                   (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
-                        " track of funny and interesting quotes in your server.\n\n"
+  [prefix admin?]
+  (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
+       " track of funny and interesting quotes in your server.\n\n"
 
-                        "I only have a couple of commands to remember.\n"
-                        "`" prefix "help` displays this message!\n"
-                        "`" prefix "quote` will get a random quote from your server's list.\n"
-                        "`" prefix "quote <name>` will get a random quote said by the"
-                        " named user.\n"
-                        "`" prefix "quote add <name> <quote>` will add a new quote"
-                        " to your server.\n"
-                        "`" prefix "quote remove <name> <quote>` removes the given quote."
-                        " Later this will be done by an ID instead of the copied and"
-                        " pasted quote.\n\n"
+       "I only have a couple of commands to remember.\n"
+       "`" prefix "help` displays this message!\n"
+       "`" prefix "quote` will get a random quote from your server's list.\n"
+       "`" prefix "quote <name>` will get a random quote said by the"
+       " named user.\n"
+       "`" prefix "quote add <name> <quote>` will add a new quote"
+       " to your server.\n"
+       "`" prefix "quote remove <name> <quote>` removes the given quote."
+       " Later this will be done by an ID instead of the copied and"
+       " pasted quote.\n\n"
 
-                        "Recently I got to add playing the game Mafia to my features. If"
-                        " you'd like to see how to play, use this command:\n"
-                        "`" prefix "mafia help`\n\n"
-                        (when admin?
-                          (str "Since you are an admin on the server, feel free to make"
-                               " use of these additional commands:\n"
-                               "`" prefix "prefix <new prefix>` changes the bot's prefix for this server.\n"
-                               "`" prefix "blacklist add <name>` bans members joining the server with this in"
-                               " their name.\n"
-                               "`" prefix "blacklist add regex <regex>` bans members joining the server with "
-                               "names that match the regular expression.\n"
-                               "`" prefix "blacklist remove <listed number>` removes the blacklist name or "
-                               "pattern based on its index as shown by the list command.\n"
-                               "`" prefix "blacklist list` lists all the names and patterns"
-                               " blacklisted by this bot.\n"
-                               "`" prefix "blacklist clear` clears the blacklist of both names and"
-                               " patterns.\n")))))
+       "Pretty soon I will add playing the game Mafia to my features. If"
+       " you'd like to see how to play, use this command:\n"
+       "`" prefix "mafia help`\n\n"
+       (when admin?
+         (str "Since you are an admin on the server, feel free to make"
+              " use of these additional commands:\n"
+              "`" prefix "prefix <new prefix>` changes the bot's prefix for this server.\n"
+              "`" prefix "blacklist add <name>` bans members joining the server with this in"
+              " their name.\n"
+              "`" prefix "blacklist add regex <regex>` bans members joining the server with "
+              "names that match the regular expression.\n"
+              "`" prefix "blacklist remove <listed number>` removes the blacklist name or "
+              "pattern based on its index as shown by the list command.\n"
+              "`" prefix "blacklist list` lists all the names and patterns"
+              " blacklisted by this bot.\n"
+              "`" prefix "blacklist clear` clears the blacklist of both names and"
+              " patterns.\n"))))
+
+(defn mafia-help-message
+  ""
+  [prefix admin?]
+  (str "Coming soon:tm:\n"
+       "Welcome to Mafia!\n"
+       "Mafia is a game of social intrigue. Players who join will be randomly assigned"
+       " to being a villager, a member of the mafia, a medic, or an investigator."
+       " While playing the game, each round of play is represented as a night, and"
+       " the following day.\n\n"
+
+       "During the night the Mafia can try to kill non-Mafia, Medics can select"
+       " someone they would like to save from the Mafia, should they try to kill them,"
+       " and the Investigator can learn the role of someone else.\n"
+       "During the day, the players who were killed in the night are revealed and they get"
+       " to say their last words. Then the remaining players get to vote for who they"
+       " think is a mafia member. The player with the most votes says their last words"
+       " and then is hanged, then the whole process starts over again.\n"
+       "The game is over once either all of the Mafia are dead, or everyone else is."
+       " Obviously the survivors are the winners.\n\n"
+
+       "Commands:\n"
+       "`" prefix "mafia start` \n"
+       "`" prefix "mafia join` \n"
+       "`" prefix "mafia leave` \n"
+       (when admin?
+         (str "Admins also have access to the following:\n"
+          "`" prefix "mafia stop` \n"))
+       "\n"
+       "Once the game is started, many parts of the game have to take place in private."
+       " As a result, the bot will have to send you private messages while you play."
+       " That means you will have to allow DMs from server members (which is on by default)."
+       " Any additional instructions that are needed will be given to you when needed."))
 
 (def owner (resource "owner.txt"))
 (def bot-id (resource "bot.txt"))
@@ -104,17 +136,21 @@
         ;; Mafia commands
         (#"mafia\s+help"
           (m/send-message! (:messaging @state) channel-id
-                           (str "Thanks for requesting help with mafia!")))
+                           (mafia-help-message prefix admin?)))
         (#"mafia\s+start"
           (when-not (mafia.s/active-game? state guild-id)
               (m/send-message! (:messaging @state) channel-id
-                               (str "Starting new mafia game"))))
+                               (str "Soon:tm:: Starting new mafia game"))))
         (#"mafia\s+join"
           (m/send-message! (:messaging @state) channel-id
-                           (str "User " (:username ((:users @state) id)) " joined the mafia game!")))
+                           (str "Soon:tm:: User " (:username ((:users @state) id)) " joined the mafia game!")))
         (#"mafia\s+leave"
           (m/send-message! (:messaging @state) channel-id
-                           (str "User " (:username ((:users @state) id)) " left the mafia game.")))
+                           (str "Soon:tm:: User " (:username ((:users @state) id)) " left the mafia game.")))
+        (#"mafia\s+stop"
+          (when admin?
+            (m/send-message! (:messaging @state) channel-id
+                             (str "Soon:tm:: Stopping the mafia game!"))))
 
         ;; Admin commands
         (#"prefix\s+(\S+)" [new-prefix]
@@ -164,9 +200,8 @@
 
         ;; Get help
         (#"help"
-          (display-help-message (:messaging @state) channel-id prefix admin?))
+          (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))
         :default
         (when (and (= (count mentions) 1)
                    (= (:id (first mentions)) bot-id))
-          (display-help-message (:messaging @state) channel-id prefix
-                                admin?))))))
+          (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))))))
