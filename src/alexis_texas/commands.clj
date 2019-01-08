@@ -55,8 +55,8 @@
 (defn mafia-help-message
   ""
   [prefix admin?]
-  (str "Coming soon:tm:\n"
-       "Welcome to Mafia!\n"
+  (str "Coming soon:tm:\n\n"
+       "Welcome to Mafia!\n\n"
        "Mafia is a game of social intrigue. Players who join will be randomly assigned"
        " to being a villager, a member of the mafia, a medic, or an investigator."
        " While playing the game, each round of play is represented as a night, and"
@@ -91,8 +91,8 @@
 (defn process-message
   [{{:keys [bot id]} :author
     {:keys [roles]} :member
-    :keys [content channel-id guild-id mentions] :as event-data}]
-  (when-not bot
+    :keys [content channel-id guild-id mentions webhook-id] :as event-data}]
+  (when-not (or bot webhook-id)
     (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
                      "!")
           admin? (or (= id owner)
