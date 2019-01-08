@@ -1,4 +1,4 @@
-(defproject alexis-texas "0.1.4-SNAPSHOT"
+(defproject alexis-texas "0.1.5-SNAPSHOT"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
