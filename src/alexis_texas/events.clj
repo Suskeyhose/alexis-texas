@@ -18,6 +18,10 @@
                                  [(:id (:user member))
                                   (dissoc member :user)])))
 
+(defn ready
+  [{{:keys [id]} :user :as event-data}]
+  (swap! state assoc :bot-id id))
+
 (defn update-guild
   [{:keys [id roles members] :as guild}]
   (transform [ATOM :guilds (keypath id)]

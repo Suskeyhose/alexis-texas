@@ -86,7 +86,6 @@
        " Any additional instructions that are needed will be given to you when needed."))
 
 (def owner (resource "owner.txt"))
-(def bot-id (resource "bot.txt"))
 
 (defn process-message
   [{{:keys [bot id]} :author
@@ -203,5 +202,5 @@
           (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))
         :default
         (when (and (= (count mentions) 1)
-                   (= (:id (first mentions)) bot-id))
+                   (= (:id (first mentions)) (:bot-id @state)))
           (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))))))

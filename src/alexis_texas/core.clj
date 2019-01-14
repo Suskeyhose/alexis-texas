@@ -2,8 +2,8 @@
   (:require
    [alexis-texas.commands :refer [process-message]]
    [alexis-texas.events :refer [add-guild-members add-member-info add-role delete-role disconnect-bot
-                                remove-guild remove-guild-member update-guild update-guild-member
-                                update-role update-user state]]
+                                ready remove-guild remove-guild-member state update-guild
+                                update-guild-member update-role update-user]]
    [alexis-texas.util :refer [resource]]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
@@ -30,6 +30,7 @@
 
 (def handle-event
   (handler
+   :ready [#'ready]
    :guild-create [#'update-guild]
    :guild-update [#'update-guild]
    :guild-remove [#'remove-guild]
