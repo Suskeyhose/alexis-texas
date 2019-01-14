@@ -19,8 +19,9 @@
                                   (dissoc member :user)])))
 
 (defn ready
-  [{{:keys [id]} :user :as event-data}]
-  (swap! state assoc :bot-id id))
+  [{{:keys [id username]} :user :as event-data}]
+  (swap! state assoc :bot-id id
+                     :bot-name username))
 
 (defn update-guild
   [{:keys [id roles members] :as guild}]

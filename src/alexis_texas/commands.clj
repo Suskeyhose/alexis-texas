@@ -20,7 +20,7 @@
   the channel ID on which to send a help message, and the current guild's prefix,
   and sends a help message to Discord."
   [prefix admin?]
-  (str "Hi! I'm Alexis Texas, a Discord Bot meant to help you keep"
+  (str "Hi! I'm " (:bot-name @state) ", a Discord Bot meant to help you keep"
        " track of funny and interesting quotes in your server.\n\n"
 
        "I only have a couple of commands to remember.\n"
