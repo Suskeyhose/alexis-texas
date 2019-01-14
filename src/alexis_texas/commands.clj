@@ -151,6 +151,11 @@
             (m/send-message! (:messaging @state) channel-id
                              (str "Soon:tm:: Stopping the mafia game!"))))
 
+        (#"mafia"
+          (m/send-message! (:messaging @state) channel-id
+                           (str "Invalid command, maybe try running `"
+                                prefix "mafia help` to see what you can do.")))
+
         ;; Admin commands
         (#"prefix\s+(\S+)" [new-prefix]
           (if admin?
