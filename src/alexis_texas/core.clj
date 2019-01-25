@@ -85,6 +85,8 @@
   []
   (when @*connection*
     (c/disconnect-bot! @*connection*))
+  (when @*messaging*
+    (m/stop-connection! @*messaging*))
   (reset! *events* nil)
   (reset! *connection* nil)
   (reset! *messaging* nil))
