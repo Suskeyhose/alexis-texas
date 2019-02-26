@@ -8,6 +8,7 @@
    [alexis-texas.mafia.state :as mafia.s]
    [alexis-texas.permissions :refer [user-has-permission?]]
    [alexis-texas.util :refer [resource]]
+   [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
    [clojure.tools.logging :as log]
    [discljord.connections :as c]
@@ -101,111 +102,161 @@
         ;; Owner commands
         (#"disconnect"
           (when (= id owner)
-            (m/send-message! (:messaging @state) channel-id "Goodbye!")
+            (m/create-message! (:messaging @state) channel-id :content "Goodbye!")
             (c/disconnect-bot! (:connection @state))))
 
         ;; Quote commands
         (#"quote\s+add\s+(\S+)\s+([\s\S]+)" [user q]
-          (m/send-message! (:messaging @state) channel-id
-                           (str "Adding quote to user " user))
+          (m/create-message! (:messaging @state) channel-id
+                           :content (str "Adding quote to user " user))
           (transform [ATOM :state (keypath guild-id) :quotes (keypath user)] #(conj (or % []) q) state))
         (#"quote\s+remove\s+(\S+)\s+([\s\S]+)" [user q]
-          (m/send-message! (:messaging @state) channel-id
-                           (str "Removing quote from user " user))
+          (m/create-message! (:messaging @state) channel-id
+                           :content (str "Removing quote from user " user))
           (transform [ATOM :state (keypath guild-id) :quotes (keypath user)]
                      #(filter (partial not= q) %)
                      state))
         (#"quote\s+(\S+)" [user]
           (let [quotes-vec (select [ATOM :state (keypath guild-id) :quotes (keypath user) ALL] state)]
             (if-not (empty? quotes-vec)
-              (m/send-message! (:messaging @state) channel-id
-                               (str user ": " (rand-nth quotes-vec)))
-              (m/send-message! (:messaging @state) channel-id
-                               (str "No quotes found for user " user "!")))))
+              (m/create-message! (:messaging @state) channel-id
+                               :content (str user ": " (rand-nth quotes-vec)))
+              (m/create-message! (:messaging @state) channel-id
+                               :content (str "No quotes found for user " user "!")))))
         (#"quote\s*$"
           (let [quotes-vec (filter #(pos? (count (second %)))
                                    (select [ATOM :state (keypath guild-id) :quotes ALL] state))]
             (if-not (empty? quotes-vec)
               (let [[user quotes] (rand-nth quotes-vec)]
-                (m/send-message! (:messaging @state) channel-id
-                                 (str user ": " (rand-nth quotes))))
-              (m/send-message! (:messaging @state) channel-id
-                               "No quotes in this server! Get to talking!"))))
+                (m/create-message! (:messaging @state) channel-id
+                                 :content (str user ": " (rand-nth quotes))))
+              (m/create-message! (:messaging @state) channel-id
+                               :content "No quotes in this server! Get to talking!"))))
 
         ;; Mafia commands
         (#"mafia\s+help"
-          (m/send-message! (:messaging @state) channel-id
-                           (mafia-help-message prefix admin?)))
+          ;; TODO: Make this state-dependant for the guild
+          (m/create-message! (:messaging @state) channel-id
+                           :content (mafia-help-message prefix admin?)))
         (#"mafia\s+start"
-          (when-not (mafia.s/active-game? state guild-id)
-              (m/send-message! (:messaging @state) channel-id
-                               (str "Soon:tm:: Starting new mafia game"))))
+          (let [game-state (mafia.s/game-state state guild-id)]
+            (if-not (:playing? game-state)
+             (do (m/create-message! (:messaging @state) channel-id
+                                  :content (str "Starting new mafia game"))
+                 (mafia.s/start-game! state guild-id channel-id))
+             (m/create-message! (:messaging @state) channel-id
+                              :content (str "A game has already been started in this guild!"
+                                            " Check out <#"
+                                            (:channel game-state)
+                                            "> for more information!")))))
+
         (#"mafia\s+join"
-          (m/send-message! (:messaging @state) channel-id
-                           (str "Soon:tm:: User " (:username ((:users @state) id)) " joined the mafia game!")))
+          (m/create-message!
+           (:messaging @state) channel-id
+           :content (let [game-state (mafia.s/game-state state guild-id)]
+                      (if (:playing? game-state)
+                        (if (= (:phase game-state)
+                               :join-game)
+                          (if-not (contains? (:state game-state) id)
+                            (do (mafia.s/set-game-state state guild-id
+                                                        (assoc game-state :state
+                                                               (conj (or (:state game-state) #{}) id)))
+                                (str "User " (:username ((:users @state) id)) " joined the mafia game!"))
+                            (str "You're already in the game!"))
+                          (str "The current game is past the join phase."
+                               " Maybe you can play the next one!"))
+                        (str "There's no mafia game currently running on this server."
+                             " Maybe you should start one!")))))
+
         (#"mafia\s+leave"
-          (m/send-message! (:messaging @state) channel-id
-                           (str "Soon:tm:: User " (:username ((:users @state) id)) " left the mafia game.")))
+          (m/create-message!
+           (:messaging @state) channel-id
+           :content
+           (let [game-state (mafia.s/game-state state guild-id)]
+             (if (:playing? game-state)
+               (if (= (:phase game-state)
+                      :join-game)
+                 (do (mafia.s/set-game-state state guild-id
+                                             (assoc game-state :state
+                                                    (disj (:state game-state)
+                                                          id)))
+                     (str "User " (:username ((:users @state) id)) " left the mafia game.")))
+               (str "There's no game currently active! You can start one if you want to leave.")))))
+
         (#"mafia\s+stop"
           (when admin?
-            (m/send-message! (:messaging @state) channel-id
-                             (str "Soon:tm:: Stopping the mafia game!"))))
+            (m/create-message!
+             (:messaging @state) channel-id
+             :content
+             (if (:playing? (mafia.s/game-state state guild-id))
+               (do (mafia.s/stop-game! state guild-id)
+                   (str "Stopping the mafia game!"))
+               (str "No game is currently running.")))))
 
+        (#"mafia\s+phase\s+next"
+          (when (and admin?
+                     (:playing? (mafia.s/game-state state guild-id)))
+            (mafia.s/advance-phase state guild-id)
+            (m/create-message! (:messaging @state) channel-id
+                             :content (str "Advancing game to next phase"))))
+
+        ;; fallback
         (#"mafia"
-          (m/send-message! (:messaging @state) channel-id
-                           (str "Invalid command, maybe try running `"
-                                prefix "mafia help` to see what you can do.")))
+          (m/create-message! (:messaging @state) channel-id
+                           :content (str "Invalid command, maybe try running `"
+                                         prefix "mafia help` to see what you can do.")))
 
         ;; Admin commands
         (#"prefix\s+(\S+)" [new-prefix]
           (if admin?
-            (do (m/send-message! (:messaging @state) channel-id
-                                 (str "Using new prefix: " new-prefix))
-                (setval [ATOM :state guild-id :prefix] new-prefix state))
-            (m/send-message! (:messaging @state) channel-id
-                             "You don't have permissions to change that!")))
+            (do (m/create-message! (:messaging @state) channel-id
+                                 :content (str "Using new prefix: " new-prefix))
+                (setval [ATOM :state (keypath guild-id) :prefix] new-prefix state))
+            (m/create-message! (:messaging @state) channel-id
+                             :content "You don't have permissions to change that!")))
         (#"blacklist\s+add\s+regex\s+([\S\s]+)" [blacklist-item]
           (when admin?
             (transform [ATOM :state (keypath guild-id) :blacklist]
                        #(conj (or % []) (re-pattern blacklist-item))
                        state)
-            (m/send-message! (:messaging @state) channel-id
-                             "Adding new blacklisted pattern")))
+            (m/create-message! (:messaging @state) channel-id
+                             :content "Adding new blacklisted pattern")))
         (#"blacklist\s+add\s+([\S\s]+)" [blacklist-item]
           (when admin?
             (transform [ATOM :state (keypath guild-id) :blacklist]
                        #(conj (or % []) blacklist-item)
                        state)
-            (m/send-message! (:messaging @state) channel-id
-                             "Adding new blacklisted name")))
+            (m/create-message! (:messaging @state) channel-id
+                             :content "Adding new blacklisted name")))
         (#"blacklist\s+list"
           (when admin?
-            (m/send-message! (:messaging @state) channel-id
-                             (apply str "Blacklisted names:\n"
-                                    (interpose
-                                     "\n"
-                                     (map-indexed
-                                      #(str %1 ": " %2)
-                                      (select [ATOM :state (keypath guild-id) :blacklist ALL]
-                                              state)))))))
+            (m/create-message! (:messaging @state) channel-id
+                             :content (apply str "Blacklisted names:\n"
+                                             (interpose
+                                              "\n"
+                                              (map-indexed
+                                               #(str %1 ": " %2)
+                                               (select [ATOM :state (keypath guild-id) :blacklist ALL]
+                                                       state)))))))
         (#"blacklist\s+clear"
           (when admin?
-            (setval [ATOM :state guild-id :blacklist ALL] NONE state)
-            (m/send-message! (:messaging @state) channel-id
-                             "Clearing the blacklist!")))
+            (setval [ATOM :state (keypath guild-id) :blacklist ALL] NONE state)
+            (m/create-message! (:messaging @state) channel-id
+                             :content "Clearing the blacklist!")))
         (#"blacklist\s+remove\s+(\d+)" [idx]
           (when admin?
             (let [num (Long/parseLong idx)
                   item (select-first [ATOM :state (keypath guild-id) :blacklist (keypath num)] state)]
-              (setval [ATOM :state guild-id :blacklist num] NONE state)
-              (m/send-message! (:messaging @state) channel-id
-                               (str "Removing blacklist item: "
-                                    item)))))
+              (setval [ATOM :state (keypath guild-id) :blacklist (keypath num)] NONE state)
+              (m/create-message! (:messaging @state) channel-id
+                               :content (str "Removing blacklist item: "
+                                             item)))))
 
         ;; Get help
         (#"help"
-          (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))
+          (println "Help?")
+          (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?)))
         :default
         (when (and (= (count mentions) 1)
                    (= (:id (first mentions)) (:bot-id @state)))
-          (m/send-message! (:messaging @state) channel-id (help-message prefix admin?)))))))
+          (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?)))))))
