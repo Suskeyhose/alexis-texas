@@ -5,10 +5,10 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/core.async "0.4.490"]
-                 [org.clojure/tools.logging "0.4.1"]
                  [com.rpl/specter "1.1.1"]
-                 [org.suskalo/discljord "0.2.0-SNAPSHOT"]]
-  :jvm-opts ["--add-modules" "java.xml.bind"]
+                 [com.taoensso/timbre "4.10.0"]
+                 [org.suskalo/discljord "0.2.3"]]
+  :jvm-opts []
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
                                   "-Dclojure.compiler.direct-linking=true"]}

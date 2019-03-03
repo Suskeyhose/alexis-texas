@@ -7,7 +7,7 @@
    [alexis-texas.util :refer [resource]]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
-   [clojure.tools.logging :as log]
+   [taoensso.timbre :as log]
    [discljord.connections :as c]
    [discljord.events :as e]
    [discljord.messaging :as m])

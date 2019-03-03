@@ -3,7 +3,7 @@
    com.rpl.specter)
   (:require
    [clojure.string :as str]
-   [clojure.tools.logging :as log]
+   [taoensso.timbre :as log]
    [discljord.messaging :as m]))
 
 (defonce state (atom nil))

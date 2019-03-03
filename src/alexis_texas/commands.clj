@@ -10,7 +10,7 @@
    [alexis-texas.util :refer [resource]]
    [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
-   [clojure.tools.logging :as log]
+   [taoensso.timbre :as log]
    [discljord.connections :as c]
    [discljord.messaging :as m])
   (:import
@@ -254,7 +254,6 @@
 
         ;; Get help
         (#"help"
-          (println "Help?")
           (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?)))
         :default
         (when (and (= (count mentions) 1)

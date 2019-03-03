@@ -1,3 +1,6 @@
-{:deps {org.suskalo/discljord {:mvn/version "0.1.7-SNAPSHOT"}}
- :paths ["src" "resources"]
- :aliases {:java/v10 {:jvm-opts ["--add-modules" "java.xml.bind"]}}}
+{:deps {org.clojure/clojure {:mvn/version "1.10.0"}
+        org.clojure/core.async {:mvn/version "0.4.490"}
+        com.rpl/specter "1.1.1"
+        com.taoensso/timbre "4.10.o"
+        org.suskalo/discljord {:mvn/version "0.2.3"}}
+ :paths ["src" "resources"]}
