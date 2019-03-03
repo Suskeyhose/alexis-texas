@@ -43,6 +43,7 @@
 (s/def ::event (s/keys :req-un [::type]))
 
 (defn update-player
+  ""
   [players player k f]
   (update-in players [player k] f))
 (s/fdef update-player
@@ -53,6 +54,7 @@
   :ret ::game-state)
 
 (defn kill-player
+  ""
   [players player]
   (update-player players player :alive? (constantly false)))
 (s/fdef kill-player
@@ -61,6 +63,7 @@
   :ret ::game-state)
 
 (defn kill-players
+  ""
   [players to-kill]
   (reduce kill-player players to-kill))
 (s/fdef kill-players
@@ -69,6 +72,7 @@
   :ret ::game-state)
 
 (defn filter-events
+  ""
   [event-type]
   (comp (filter (comp (partial = event-type) :type))
         (distinct)))
@@ -96,12 +100,14 @@
   (update update-map :saved #(conj (or %1 #{}) %2) (:target event)))
 
 (defn process-events
+  ""
   [events]
   (reduce process-event {} events))
 (s/fdef process-events
   :args (s/cat :events (s/coll-of ::event)))
 
 (defn killed-players
+  ""
   [events]
   (let [updated-map (process-events events)]
     (set/difference (:attacked updated-map)
@@ -111,9 +117,28 @@
   :ret (s/coll-of ::user-id))
 
 (defn resolve-night
+  ""
   [players events]
   (kill-players players (killed-players events)))
 (s/fdef resolve-night
   :args (s/cat :players ::game-state
                :events (s/coll-of ::event))
   :ret ::game-state)
+
+(defn player-distrobution
+  ""
+  [num-players]
+  (let [num-mafia (int (if (<= num-players 4)
+                         1
+                         (max 2 (* 0.3 num-players))))
+        num-healers (int (if (> num-mafia 2)
+                           (max 1 (* 0.1 num-players))
+                           (* 1/7 num-players)))
+        num-investigators (int (if (> num-mafia 2)
+                                 (max 1 (* 0.05 num-players))
+                                 (* 1/8 num-players)))
+        num-villagers (int (- num-players num-mafia num-healers num-investigators))]
+    {:mafia num-mafia
+     :healer num-healers
+     :investigator num-investigators
+     :villager num-villagers}))
