@@ -53,7 +53,7 @@
                                                    :body (s/* any?)))))
 (defmacro commands
   ""
-  {:arglists '([prefix content clauses*] [prefix content clauses* & default])
+  {:arglists '([prefix content clauses*] [prefix content clauses* :default & default])
    :style/indent [:defn [:defn]]}
   [& args]
   (let [{:keys [prefix content clauses default]} (s/conform ::commands-args args)
