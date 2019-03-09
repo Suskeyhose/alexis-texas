@@ -70,3 +70,35 @@
              `(:default ~@body))))))
 (s/fdef commands
   :args ::commands-args)
+
+(s/def ::command-fn-clause (s/cat :command (s/alt :string string?
+                                                  :regex (partial instance? java.util.regex.Pattern))
+                                  :fn any?))
+(s/def ::command-fns-args (s/cat :prefix any?
+                                 :content any?
+                                 :clauses (s/* (s/spec ::command-fn-clause))
+                                 :default (s/? (s/cat :separator (partial = :default)
+                                                      :body (s/* any?)))))
+
+(defn- command-fns-helper
+  [prefix content clauses default]
+  (if (seq clauses)
+    (let [clause (first clauses)]
+      `(if-let [args# (re-find (re-pattern (str "^" ~prefix ~(second (:command clause)))))]
+         (if (string? args#)
+           (~(:fn clause))
+           (apply ~(:fn clause) (rest args#)))
+         ~(command-fns-helper prefix content (rest clauses) default)))
+    `(do ~@(:body default))))
+
+(defmacro command-fns
+  ""
+  {:arglists '([prefix content clauses*] [prefix content clauses* :default & default])
+   :style/indent [:defn]}
+  [& args]
+  (let [{:keys [prefix content clauses default]} (s/conform ::command-fns-args args)
+        pfx (gensym)]
+    `(let [~pfx (Pattern/quote ~prefix)]
+       ~(command-fns-helper pfx content clauses default))))
+(s/fdef command-fns
+  :args ::command-fns-args)
