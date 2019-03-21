@@ -7,7 +7,7 @@
    [alexis-texas.mafia :as mafia]
    [alexis-texas.mafia.state :as mafia.s]
    [alexis-texas.permissions :refer [user-has-permission?]]
-   [alexis-texas.util :refer [resource]]
+   [alexis-texas.util :refer [owner]]
    [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
    [taoensso.timbre :as log]
@@ -86,7 +86,6 @@
        " That means you will have to allow DMs from server members (which is on by default)."
        " Any additional instructions that are needed will be given to you when needed."))
 
-(def owner (resource "owner.txt"))
 
 (defn- disconnect
   [{:keys [channel-id] {id :id} :author}]

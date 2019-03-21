@@ -9,3 +9,5 @@
       io/resource
       slurp
       str/trim))
+
+(def owner (resource "owner.txt"))
