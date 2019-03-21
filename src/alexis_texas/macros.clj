@@ -94,7 +94,7 @@
 
 (defmacro command-fns
   ""
-  {:arglists '([prefix content clauses*] [prefix content clauses* :default & default])
+  {:arglists '([event-data prefix content clauses*] [event-data prefix content clauses* :default & default])
    :style/indent [:defn]}
   [& args]
   (let [{:keys [event-data prefix content clauses default]} (s/conform ::command-fns-args args)
