@@ -7,6 +7,7 @@
    [alexis-texas.macros :refer [commands command-fns]]
    [alexis-texas.mafia.commands :as mafia.c]
    [alexis-texas.permissions :refer [user-has-permission?]]
+   [alexis-texas.quotes :as quotes]
    [alexis-texas.util :refer [owner]]
    [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
@@ -60,40 +61,6 @@
     (m/create-message! (:messaging @state) channel-id :content "Goodbye!")
     (c/disconnect-bot! (:connection @state))))
 
-(defn- add-quote
-  [{:keys [channel-id guild-id]} user q]
-  (m/create-message! (:messaging @state) channel-id
-                     :content (str "Adding quote to user " user))
-  (transform [ATOM :state (keypath guild-id) :quotes (keypath user)] #(conj (or % []) q) state))
-
-(defn- remove-quote
-  [{:keys [channel-id guild-id]} user q]
-  (m/create-message! (:messaging @state) channel-id
-                     :content (str "Removing quote from user " user))
-  (transform [ATOM :state (keypath guild-id) :quotes (keypath user)]
-             #(filter (partial not= q) %)
-             state))
-
-(defn- quote-for-user
-  [{:keys [guild-id channel-id]} user]
-  (let [quotes-vec (select [ATOM :state (keypath guild-id) :quotes (keypath user) ALL] state)]
-    (if-not (empty? quotes-vec)
-      (m/create-message! (:messaging @state) channel-id
-                         :content (str user ": " (rand-nth quotes-vec)))
-      (m/create-message! (:messaging @state) channel-id
-                         :content (str "No quotes found for user " user "!")))))
-
-(defn- rand-quote
-  [{:keys [guild-id channel-id]}]
-  (let [quotes-vec (filter #(pos? (count (second %)))
-                           (select [ATOM :state (keypath guild-id) :quotes ALL] state))]
-    (if-not (empty? quotes-vec)
-      (let [[user quotes] (rand-nth quotes-vec)]
-        (m/create-message! (:messaging @state) channel-id
-                           :content (str user ": " (rand-nth quotes))))
-      (m/create-message! (:messaging @state) channel-id
-                         :content "No quotes in this server! Get to talking!"))))
-
 (defn- create-new-prefix
   [{:keys [guild-id channel-id] {id :id} :author} new-prefix]
   (let [admin? (or (= id owner)
@@ -124,10 +91,10 @@
         (#"disconnect" #'disconnect)
 
         ;; quote stuff
-        (#"quote\s+add\s+(\S+)\s+([\s\S]+)" #'add-quote)
-        (#"quote\s+remove\s+(\S+)\s+([\s\S]+)" #'remove-quote)
-        (#"quote\s+(\S+)" #'quote-for-user)
-        (#"quote\s*$" #'rand-quote)
+        (#"quote\s+add\s+(\S+)\s+([\s\S]+)" #'quotes/add-quote)
+        (#"quote\s+remove\s+(\S+)\s+([\s\S]+)" #'quotes/remove-quote)
+        (#"quote\s+(\S+)" #'quotes/quote-for-user)
+        (#"quote\s*$" #'quotes/rand-quote)
 
         ;; mafia commands
         (#"mafia\s+help" #'mafia.c/mafia-help)
