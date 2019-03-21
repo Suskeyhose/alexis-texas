@@ -124,7 +124,8 @@
         (#"help" #'send-help-message)
         :default
         (when (and (= (count mentions) 1)
-                   (= (:id (first mentions)) (:bot-id @state)))
+                   (= (:id (first mentions)) (:bot-id @state))
+                   (re-matches #"^<@\d+>$" content))
           (let [admin? (or (= id owner)
                            (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
                            (user-has-permission? id guild-id :manage-guild))]
