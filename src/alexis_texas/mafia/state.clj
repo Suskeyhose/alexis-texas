@@ -69,20 +69,63 @@
   [state guild-id]
   (let [s (game-state state guild-id)
         players (players-map (:state s))]
-    (transform [ATOM :state (keypath guild-id) :mafia]
-               (fn [s]
-                 (assoc s
-                        :players players
-                        :state []
-                        :day 1
-                        :phase :night))
-               state)))
+    (update-game-state state guild-id
+                       (fn [s]
+                         (assoc s
+                                :players players
+                                :state []
+                                :day 1
+                                :phase :night)))
+    ;; TODO(Joshua): Notify the players of the new state, and give a help message if it's day 1
+    ))
 
 (defmethod advance-phase :night
-  [state guild-id])
+  [state guild-id]
+  (update-game-state state guild-id
+                     (fn [s]
+                       (assoc s
+                              :phase :last-words)))
+  ;; TODO(Joshua): Notify the players that they can no longer use their abilities, and that some
+  ;;               players have been asked for their last words
+  )
+
+(defmethod advance-phase :last-words
+  [state guild-id]
+  (update-game-state state guild-id
+                     (fn [s]
+                       (assoc s
+                              :phase :nominate)))
+  ;; TODO(Joshua): Notify the players that it's time to nominate who they think is mafia, and if
+  ;;               it's day 1, send a help message to show how to nominate someone
+  )
 
 (defmethod advance-phase :nominate
-  [state guild-id])
+  [state guild-id]
+  (update-game-state state guild-id
+                     (fn [s]
+                       (assoc s
+                              :phase :vote)))
+  ;; TODO(Joshua): Notify the players who has been nominated, and declare a vote. If it's the
+  ;;               first day, display a help message, showing how to vote
+  )
 
 (defmethod advance-phase :vote
-  [state guild-id])
+  [state guild-id]
+  (update-game-state state guild-id
+                     (fn [s]
+                       (assoc s
+                              :phase :lynching)))
+  ;; TODO(Joshua): Notify the players who was voted out, and allow them a brief moment to say
+  ;;               their last words
+  )
+
+(defmethod advance-phase :lynching
+  [state guild-id]
+  (update-game-state state guild-id
+                     (fn [s]
+                       (assoc s
+                              :day (inc (:day s))
+                              :phase :night)))
+  ;; TODO(Joshua): Notify the players that it is now night, and send each of the players a dm
+  ;;               telling them how they should act.
+  )
