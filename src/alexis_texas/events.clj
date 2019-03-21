@@ -108,7 +108,7 @@
 
 (defn disconnect-bot
   [event-data]
-  (log/fatal "Disconnecting from Discord.")
+  (log/debug "Disconnecting from Discord.")
   (m/stop-connection! (:messaging @state))
   (swap! state assoc :running false)
   (spit "quotes.edn" (pr-str (:state @state))))
