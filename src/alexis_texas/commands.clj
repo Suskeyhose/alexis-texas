@@ -54,14 +54,22 @@
               "`" prefix "blacklist clear` clears the blacklist of both names and"
               " patterns.\n"))))
 
+(defn send-help-message
+  [{:keys [channel-id guild-id] {id :id} :author}]
+  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
+                   "!")
+        admin? (or (= id owner)
+                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
+                   (user-has-permission? id guild-id :manage-guild))]
+    (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?))))
 
-(defn- disconnect
+(defn disconnect
   [{:keys [channel-id] {id :id} :author}]
   (when (= id owner)
     (m/create-message! (:messaging @state) channel-id :content "Goodbye!")
     (c/disconnect-bot! (:connection @state))))
 
-(defn- create-new-prefix
+(defn create-new-prefix
   [{:keys [guild-id channel-id] {id :id} :author} new-prefix]
   (let [admin? (or (= id owner)
                    (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
@@ -73,9 +81,10 @@
       (m/create-message! (:messaging @state) channel-id
                          :content "You don't have permissions to change that!"))))
 
-(defn- ping
-  [{:keys [channel-id]}]
-  (m/create-message! (:messaging @state) channel-id :content "pong!"))
+(defn ping
+  [{:keys [channel-id] {id :id} :author}]
+  (when (= id owner)
+    (m/create-message! (:messaging @state) channel-id :content "pong!")))
 
 (defn process-message
   [{:keys [mentions content webhook-id guild-id channel-id] {bot :bot id :id} :author :as event-data}]
