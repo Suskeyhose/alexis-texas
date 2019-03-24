@@ -63,7 +63,7 @@
                                                                   (:bindings clause)
                                                                   [])
                     ~@(:body clause)))]
-    `(let [~pfx (Pattern/quote ~prefix)]
+    `(let [~pfx (java.util.regex.Pattern/quote ~prefix)]
        (regex-cond ~content
          ~@clauses
          ~@(when-let [body (:body default)]
@@ -100,7 +100,7 @@
   (let [{:keys [event-data prefix content clauses default]} (s/conform ::command-fns-args args)
         pfx (gensym)
         cntnt (gensym)]
-    `(let [~pfx (Pattern/quote ~prefix)
+    `(let [~pfx (java.util.regex.Pattern/quote ~prefix)
            ~cntnt ~content]
        ~(command-fns-helper event-data pfx cntnt clauses default))))
 (s/fdef command-fns
