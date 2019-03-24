@@ -1,9 +1,7 @@
 (ns alexis-texas.core
   (:require
-   [alexis-texas.commands :refer [process-message]]
-   [alexis-texas.events :refer [add-guild-members add-member-info add-role delete-role disconnect-bot
-                                ready remove-guild remove-guild-member state update-guild
-                                update-guild-member update-role update-user]]
+   [alexis-texas.commands :as commands]
+   [alexis-texas.events :as events]
    [alexis-texas.util :as util]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
@@ -30,20 +28,20 @@
 
 (def handle-event
   (handler
-   :ready [#'ready]
-   :guild-create [#'update-guild]
-   :guild-update [#'update-guild]
-   :guild-remove [#'remove-guild]
-   :guild-member-add [#'add-member-info]
-   :guild-members-chunk [#'add-guild-members]
-   :guild-member-update [#'update-guild-member]
-   :guild-member-remove [#'remove-guild-member]
-   :guild-role-create [#'add-role]
-   :guild-role-update [#'update-role]
-   :guild-role-delete [#'delete-role]
-   :user-update [#'update-user]
-   :message-create [#'process-message]
-   :disconnect [#'disconnect-bot]))
+   :ready [#'events/ready]
+   :guild-create [#'events/update-guild]
+   :guild-update [#'events/update-guild]
+   :guild-remove [#'events/remove-guild]
+   :guild-member-add [#'events/add-member-info]
+   :guild-members-chunk [#'events/add-guild-members]
+   :guild-member-update [#'events/update-guild-member]
+   :guild-member-remove [#'events/remove-guild-member]
+   :guild-role-create [#'events/add-role]
+   :guild-role-update [#'events/update-role]
+   :guild-role-delete [#'events/delete-role]
+   :user-update [#'events/update-user]
+   :message-create [#'commands/process-message]
+   :disconnect [#'events/disconnect-bot]))
 
 (defn run-bot
   []
