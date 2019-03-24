@@ -2,6 +2,7 @@
   (:use
    com.rpl.specter)
   (:require
+   [alexis-texas.util :as util]
    [clojure.string :as str]
    [taoensso.timbre :as log]
    [discljord.messaging :as m]))
@@ -111,4 +112,4 @@
   (log/debug "Disconnecting from Discord.")
   (m/stop-connection! (:messaging @state))
   (swap! state assoc :running false)
-  (spit "quotes.edn" (pr-str (:state @state))))
+  (util/save-state (:state @state)))
