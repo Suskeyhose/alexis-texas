@@ -1,6 +1,9 @@
 (ns alexis-texas.permissions
+  (:use
+   com.rpl.specter)
   (:require
-   [alexis-texas.events :refer [state]]))
+   [alexis-texas.events :refer [state]]
+   [alexis-texas.util :refer [owner]]))
 
 (def permissions-bit {:create-instant-invite 0x1
                       :kick-members 0x2
@@ -57,3 +60,10 @@
 (defn user-has-permissions?
   [user guild-id perms]
   (every? #(user-has-permission? user guild-id %) perms))
+
+(defn admin?
+  [guild-id user]
+  (let [id (:id user)]
+    (or (= id owner)
+        (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
+        (user-has-permission? id guild-id :manage-guild))))

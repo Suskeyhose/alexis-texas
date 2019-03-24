@@ -6,7 +6,7 @@
    [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia :as mafia]
    [alexis-texas.mafia.state :as mafia.s]
-   [alexis-texas.permissions :refer [user-has-permission?]]
+   [alexis-texas.permissions :refer [user-has-permission? admin?]]
    [alexis-texas.util :refer [owner]]
    [discljord.messaging :as m]))
 
@@ -44,15 +44,12 @@
        " Any additional instructions that are needed will be given to you when needed."))
 
 (defn mafia-help
-  [{:keys [guild-id channel-id] {id :id} :author}]
+  [{:keys [guild-id channel-id author]}]
   ;; TODO: Make this state-dependant for the guild
-  (let [admin? (or (= id owner)
-                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                   (user-has-permission? id guild-id :manage-guild))
-        prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
+  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
                    "!")]
     (m/create-message! (:messaging @state) channel-id
-                       :content (mafia-help-message prefix admin?))))
+                       :content (mafia-help-message prefix (admin? guild-id author)))))
 
 (defn mafia-start
   [{:keys [guild-id channel-id]}]
@@ -103,29 +100,23 @@
        (str "There's no game currently active! You can start one if you want to leave.")))))
 
 (defn mafia-stop
-  [{:keys [guild-id channel-id] {id :id} :author}]
-  (let [admin? (or (= id owner)
-                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                   (user-has-permission? id guild-id :manage-guild))]
-    (when admin?
-      (m/create-message!
-       (:messaging @state) channel-id
-       :content
-       (if (:playing? (mafia.s/game-state state guild-id))
-         (do (mafia.s/stop-game! state guild-id)
-             (str "Stopping the mafia game!"))
-         (str "No game is currently running."))))))
+  [{:keys [guild-id channel-id author]}]
+  (when (admin? guild-id author)
+    (m/create-message!
+     (:messaging @state) channel-id
+     :content
+     (if (:playing? (mafia.s/game-state state guild-id))
+       (do (mafia.s/stop-game! state guild-id)
+           (str "Stopping the mafia game!"))
+       (str "No game is currently running.")))))
 
 (defn mafia-phase-next
-  [{:keys [guild-id channel-id] {id :id} :author}]
-  (let [admin? (or (= id owner)
-                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                   (user-has-permission? id guild-id :manage-guild))]
-    (when (and admin?
-               (:playing? (mafia.s/game-state state guild-id)))
-      (mafia.s/advance-phase state guild-id)
-      (m/create-message! (:messaging @state) channel-id
-                         :content (str "Advancing game to next phase")))))
+  [{:keys [guild-id channel-id author]}]
+  (when (and (admin? guild-id author)
+             (:playing? (mafia.s/game-state state guild-id)))
+    (mafia.s/advance-phase state guild-id)
+    (m/create-message! (:messaging @state) channel-id
+                       :content (str "Advancing game to next phase"))))
 
 (defn invalid-mafia-command
   [{:keys [channel-id guild-id]}]

@@ -6,7 +6,7 @@
    [alexis-texas.events :refer [state]]
    [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia.commands :as mafia.c]
-   [alexis-texas.permissions :refer [user-has-permission?]]
+   [alexis-texas.permissions :refer [user-has-permission? admin?]]
    [alexis-texas.quotes :as quotes]
    [alexis-texas.util :refer [owner]]
    [clojure.pprint :refer [pprint]]
@@ -53,13 +53,10 @@
               " patterns.\n"))))
 
 (defn send-help-message
-  [{:keys [channel-id guild-id] {id :id} :author}]
+  [{:keys [channel-id guild-id author]}]
   (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                   "!")
-        admin? (or (= id owner)
-                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                   (user-has-permission? id guild-id :manage-guild))]
-    (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?))))
+                   "!")]
+    (m/create-message! (:messaging @state) channel-id :content (help-message prefix (admin? guild-id author)))))
 
 (defn disconnect
   [{:keys [channel-id] {id :id} :author}]
@@ -68,16 +65,13 @@
     (c/disconnect-bot! (:connection @state))))
 
 (defn create-new-prefix
-  [{:keys [guild-id channel-id] {id :id} :author} new-prefix]
-  (let [admin? (or (= id owner)
-                   (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                   (user-has-permission? id guild-id :manage-guild))]
-    (if admin?
-      (do (m/create-message! (:messaging @state) channel-id
-                             :content (str "Using new prefix: " new-prefix))
-          (setval [ATOM :state (keypath guild-id) :prefix] new-prefix state))
-      (m/create-message! (:messaging @state) channel-id
-                         :content "You don't have permissions to change that!"))))
+  [{:keys [guild-id channel-id author]} new-prefix]
+  (if (admin? guild-id author)
+    (do (m/create-message! (:messaging @state) channel-id
+                           :content (str "Using new prefix: " new-prefix))
+        (setval [ATOM :state (keypath guild-id) :prefix] new-prefix state))
+    (m/create-message! (:messaging @state) channel-id
+                       :content "You don't have permissions to change that!")))
 
 (defn ping
   [{:keys [channel-id] {id :id} :author}]
@@ -85,7 +79,7 @@
     (m/create-message! (:messaging @state) channel-id :content "pong!")))
 
 (defn process-message
-  [{:keys [mentions content webhook-id guild-id channel-id] {bot :bot id :id} :author :as event-data}]
+  [{:keys [mentions content webhook-id guild-id channel-id] {bot :bot :as author} :author :as event-data}]
   (when-not (or bot webhook-id)
     (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
                      "!")]
@@ -124,8 +118,5 @@
         (if (and (= (count mentions) 1)
                  (= (:id (first mentions)) (:bot-id @state))
                  (re-matches #"^<@\d+>$" content))
-          (let [admin? (or (= id owner)
-                           (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
-                           (user-has-permission? id guild-id :manage-guild))]
-            (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?)))
+          (m/create-message! (:messaging @state) channel-id :content (help-message prefix (admin? guild-id author)))
           (mafia.c/process-state-commands event-data))))))
