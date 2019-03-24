@@ -4,7 +4,7 @@
   (:require
    [alexis-texas.blacklist :as blacklist]
    [alexis-texas.events :refer [state]]
-   [alexis-texas.macros :refer [commands command-fns]]
+   [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia.commands :as mafia.c]
    [alexis-texas.permissions :refer [user-has-permission?]]
    [alexis-texas.quotes :as quotes]
@@ -13,9 +13,7 @@
    [clojure.string :as str]
    [taoensso.timbre :as log]
    [discljord.connections :as c]
-   [discljord.messaging :as m])
-  (:import
-   (java.util.regex Pattern)))
+   [discljord.messaging :as m]))
 
 (defn help-message
   "Takes a core.async channel for communicating with the messaging process,
