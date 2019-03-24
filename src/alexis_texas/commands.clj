@@ -87,6 +87,7 @@
         ;; debugging
         (#"ping" #'ping)
         (#"mafia\s+phase\s+next" #'mafia.c/mafia-phase-next)
+        (#"mafia\s+phase\s+current" #'mafia.c/mafia-phase-current)
 
         ;; author commands
         (#"disconnect" #'disconnect)

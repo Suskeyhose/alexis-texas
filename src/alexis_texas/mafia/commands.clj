@@ -118,6 +118,13 @@
     (m/create-message! (:messaging @state) channel-id
                        :content (str "Advancing game to next phase"))))
 
+(defn mafia-phase-current
+  [{:keys [guild-id channel-id author]}]
+  (when (admin? guild-id author)
+    (m/create-message! (:messaging @state) channel-id
+                       :content (str "Current phase is "
+                                     (:phase (mafia.s/game-state state guild-id))))))
+
 (defn invalid-mafia-command
   [{:keys [channel-id guild-id]}]
   (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
