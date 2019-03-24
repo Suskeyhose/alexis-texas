@@ -7,7 +7,7 @@
                  [org.clojure/core.async "0.4.490"]
                  [com.rpl/specter "1.1.1"]
                  [com.taoensso/timbre "4.10.0"]
-                 [org.suskalo/discljord "0.2.3"]]
+                 [org.suskalo/discljord "0.2.4"]]
   :jvm-opts []
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
