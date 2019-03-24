@@ -79,15 +79,14 @@
     (m/create-message! (:messaging @state) channel-id :content "pong!")))
 
 (defn process-message
-  [{:keys [mentions content webhook-id guild-id channel-id] {bot :bot :as author} :author :as event-data}]
+  [{:keys [mentions content webhook-id guild-id channel-id]
+    {bot :bot :as author} :author :as event-data}]
   (when-not (or bot webhook-id)
     (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
                      "!")]
       (command-fns event-data prefix content
         ;; debugging
         (#"ping" #'ping)
-        (#"mafia\s+phase\s+next" #'mafia.c/mafia-phase-next)
-        (#"mafia\s+phase\s+current" #'mafia.c/mafia-phase-current)
 
         ;; author commands
         (#"disconnect" #'disconnect)
@@ -101,8 +100,9 @@
         ;; mafia commands
         (#"mafia\s+help" #'mafia.c/mafia-help)
         (#"mafia\s+start" #'mafia.c/mafia-start)
-        (#"mafia\s+join" #'mafia.c/mafia-join)
-        (#"mafia\s+leave" #'mafia.c/mafia-leave)
+        (#"mafia\s+phase\s+next" #'mafia.c/mafia-phase-next)
+        (#"mafia\s+phase\s+current" #'mafia.c/mafia-phase-current)
+        (#"mafia\s+state" #'mafia.c/mafia-state)
         (#"mafia\s+stop" #'mafia.c/mafia-stop)
 
         ;; admin commands
@@ -118,5 +118,6 @@
         (if (and (= (count mentions) 1)
                  (= (:id (first mentions)) (:bot-id @state))
                  (re-matches #"^<@\d+>$" content))
-          (m/create-message! (:messaging @state) channel-id :content (help-message prefix (admin? guild-id author)))
+          (m/create-message! (:messaging @state) channel-id
+                             :content (help-message prefix (admin? guild-id author)))
           (mafia.c/process-state-commands event-data))))))

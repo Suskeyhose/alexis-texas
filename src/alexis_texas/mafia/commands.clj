@@ -8,6 +8,7 @@
    [alexis-texas.mafia.state :as mafia.s]
    [alexis-texas.permissions :refer [user-has-permission? admin?]]
    [alexis-texas.util :refer [owner]]
+   [clojure.pprint :as pprint]
    [discljord.messaging :as m]))
 
 (defn mafia-help-message
@@ -32,8 +33,6 @@
 
        "Commands:\n"
        "`" prefix "mafia start` \n"
-       "`" prefix "mafia join` \n"
-       "`" prefix "mafia leave` \n"
        (when admin?
          (str "Admins also have access to the following:\n"
           "`" prefix "mafia stop` \n"))
@@ -65,39 +64,52 @@
                                        "> for more information!")))))
 
 (defn mafia-join
+  "Adds the author of the message to the state "
   [{:keys [guild-id channel-id] {id :id} :author}]
-  (m/create-message!
-   (:messaging @state) channel-id
-   :content (let [game-state (mafia.s/game-state state guild-id)]
-              (if (:playing? game-state)
-                (if (= (:phase game-state)
-                       :join-game)
-                  (if-not (contains? (:state game-state) id)
-                    (do (mafia.s/set-game-state state guild-id
-                                                (assoc game-state :state
-                                                       (conj (or (:state game-state) #{}) id)))
-                        (str "User " (:username ((:users @state) id)) " joined the mafia game!"))
-                    (str "You're already in the game!"))
-                  (str "The current game is past the join phase."
-                       " Maybe you can play the next one!"))
-                (str "There's no mafia game currently running on this server."
-                     " Maybe you should start one!")))))
+  (let [conn (:messaging @state)]
+    (if (contains? (:state (mafia.s/game-state state guild-id))
+                   id)
+      (m/create-message!
+       conn channel-id
+       :content
+       "You've already joined this game!")
+      (do
+        (mafia.s/update-game-state state guild-id
+                                   (fn [{:keys [state] :as game-state}]
+                                     (assoc game-state
+                                            :state (conj state id))))
+        (let [game-state (mafia.s/game-state state guild-id)
+              game-channel (:channel game-state)]
+          (when-not (= channel-id game-channel)
+            (m/create-message!
+             conn game-channel
+             :content
+             (str (select-first [ATOM :users (keypath id) :username] state)
+                  " joined the mafia game!")))
+          (m/create-message!
+           conn channel-id
+           :content "Joined the mafia game!"))))))
 
 (defn mafia-leave
   [{:keys [guild-id channel-id] {id :id} :author}]
-  (m/create-message!
-   (:messaging @state) channel-id
-   :content
-   (let [game-state (mafia.s/game-state state guild-id)]
-     (if (:playing? game-state)
-       (if (= (:phase game-state)
-              :join-game)
-         (do (mafia.s/set-game-state state guild-id
-                                     (assoc game-state :state
-                                            (disj (:state game-state)
-                                                  id)))
-             (str "User " (:username ((:users @state) id)) " left the mafia game.")))
-       (str "There's no game currently active! You can start one if you want to leave.")))))
+  (let [game-state (mafia.s/game-state state guild-id)
+        conn (:messaging @state)]
+    (when (contains? (:state game-state)
+                     id)
+      (mafia.s/update-game-state state guild-id
+                                 (fn [{:keys [state] :as game-state}]
+                                   (assoc game-state
+                                          :state (disj state id))))
+      (let [game-channel (:channel game-state)]
+        (when-not (= channel-id game-channel)
+          (m/create-message!
+           conn game-channel
+           :content
+           (str (select-first [ATOM :users (keypath id) :username] state)
+                " left the game!"))))
+      (m/create-message!
+       conn channel-id
+       :content "Left the mafia game!"))))
 
 (defn mafia-stop
   [{:keys [guild-id channel-id author]}]
@@ -122,8 +134,20 @@
   [{:keys [guild-id channel-id author]}]
   (when (admin? guild-id author)
     (m/create-message! (:messaging @state) channel-id
-                       :content (str "Current phase is "
-                                     (:phase (mafia.s/game-state state guild-id))))))
+                       :content
+                       (if (:playing? (mafia.s/game-state state guild-id))
+                         (str "Current phase is "
+                              (:phase (mafia.s/game-state state guild-id)))
+                         "No game is currently being played in this guild."))))
+
+(defn mafia-state
+  [{:keys [guild-id channel-id author]}]
+  (when (admin? guild-id author)
+    (m/create-message! (:messaging @state) channel-id
+                       :content (str "```clojure\n"
+                                     (with-out-str
+                                       (pprint/pprint (mafia.s/game-state state guild-id)))
+                                     "```"))))
 
 (defn invalid-mafia-command
   [{:keys [channel-id guild-id]}]
@@ -139,6 +163,8 @@
                    "!")]
     (case (:phase (mafia.s/game-state state guild-id))
       :join-game (command-fns event-data prefix content
+                   (#"mafia\s+join" #'mafia-join)
+                   (#"mafia\s+leave" #'mafia-leave)
                    (#"mafia" #'invalid-mafia-command))
       :night (command-fns event-data prefix content
                (#"mafia" #'invalid-mafia-command))

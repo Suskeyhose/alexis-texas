@@ -3,7 +3,8 @@
    com.rpl.specter)
   (:require
    [alexis-texas.mafia :as m]
-   [clojure.spec.alpha :as s]))
+   [clojure.spec.alpha :as s]
+   [discljord.messaging :as msg]))
 
 (comment
   ;; Game state can be in any of several phases, :join-game, :night, :nominate, and :vote
@@ -68,7 +69,8 @@
 (defmethod advance-phase :join-game
   [state guild-id]
   (let [s (game-state state guild-id)
-        players (players-map (:state s))]
+        players (players-map (:state s))
+        channel-id (:channel s)]
     (update-game-state state guild-id
                        (fn [s]
                          (assoc s
@@ -76,8 +78,14 @@
                                 :state []
                                 :day 1
                                 :phase :night)))
-    ;; TODO(Joshua): Notify the players of the new state, and give a help message if it's day 1
-    ))
+    (msg/create-message! (:messaging @state) channel-id
+                         :content (str "The sun dips below the horizon, and the town goes to sleep.\n"
+                                       "Tonight will be a rough night, you all can feel it...\n\n"))
+    (when (= (:day s) 1)
+      ;; TODO(Joshua): Tell the players how the night will play out, and what's going on
+      )
+    (msg/create-message! (:messaging @state) channel-id
+                         :content (str "And so begins night " (:day s)))))
 
 (defmethod advance-phase :night
   [state guild-id]
