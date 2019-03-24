@@ -3,6 +3,7 @@
    com.rpl.specter)
   (:require
    [alexis-texas.events :refer [state]]
+   [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia :as mafia]
    [alexis-texas.mafia.state :as mafia.s]
    [alexis-texas.permissions :refer [user-has-permission?]]
@@ -133,3 +134,34 @@
     (m/create-message! (:messaging @state) channel-id
                        :content (str "Invalid command, maybe try running `"
                                      prefix "mafia help` to see what you can do."))))
+
+(defn process-state-commands
+  [{:keys [channel-id guild-id content] :as event-data}]
+  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
+                   "!")]
+    (case (:phase (mafia.s/game-state state guild-id))
+      :join-game (command-fns event-data prefix content
+                   (#"mafia\s+ping" (fn [_]
+                                      (m/create-message! (:messaging @state) channel-id
+                                                         :content "Join game"))))
+      :night (command-fns event-data prefix content
+               (#"mafia\s+ping" (fn [_]
+                                  (m/create-message! (:messaging @state) channel-id
+                                                     :content "Night"))))
+      :last-words (command-fns event-data prefix content
+                    (#"mafia\s+ping" (fn [_]
+                                       (m/create-message! (:messaging @state) channel-id
+                                                          :content "Last words"))))
+      :nominate (command-fns event-data prefix content
+                  (#"mafia\s+ping" (fn [_]
+                                     (m/create-message! (:messaging @state) channel-id
+                                                        :content "Nominations"))))
+      :vote (command-fns event-data prefix content
+              (#"mafia\s+ping" (fn [_]
+                                 (m/create-message! (:messaging @state) channel-id
+                                                    :content "Vote"))))
+      :lynching (command-fns event-data prefix content
+                  (#"mafia\s+ping" (fn [_]
+                                     (m/create-message! (:messaging @state) channel-id
+                                                        :content "Lynching"))))
+      nil)))

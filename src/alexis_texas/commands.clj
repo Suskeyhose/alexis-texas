@@ -109,7 +109,7 @@
         (#"mafia\s+join" #'mafia.c/mafia-join)
         (#"mafia\s+leave" #'mafia.c/mafia-leave)
         (#"mafia\s+stop" #'mafia.c/mafia-stop)
-        (#"mafia" #'mafia.c/invalid-mafia-command)
+        #_(#"mafia" #'mafia.c/invalid-mafia-command)
 
         ;; admin commands
         (#"prefix\s+(\S+)" #'create-new-prefix)
@@ -121,10 +121,11 @@
         ;; general
         (#"help" #'send-help-message)
         :default
-        (when (and (= (count mentions) 1)
-                   (= (:id (first mentions)) (:bot-id @state))
-                   (re-matches #"^<@\d+>$" content))
+        (if (and (= (count mentions) 1)
+                 (= (:id (first mentions)) (:bot-id @state))
+                 (re-matches #"^<@\d+>$" content))
           (let [admin? (or (= id owner)
                            (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
                            (user-has-permission? id guild-id :manage-guild))]
-            (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?))))))))
+            (m/create-message! (:messaging @state) channel-id :content (help-message prefix admin?)))
+          (mafia.c/process-state-commands event-data))))))
