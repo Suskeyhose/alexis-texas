@@ -104,7 +104,6 @@
         (#"mafia\s+join" #'mafia.c/mafia-join)
         (#"mafia\s+leave" #'mafia.c/mafia-leave)
         (#"mafia\s+stop" #'mafia.c/mafia-stop)
-        #_(#"mafia" #'mafia.c/invalid-mafia-command)
 
         ;; admin commands
         (#"prefix\s+(\S+)" #'create-new-prefix)

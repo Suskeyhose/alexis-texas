@@ -139,27 +139,16 @@
                    "!")]
     (case (:phase (mafia.s/game-state state guild-id))
       :join-game (command-fns event-data prefix content
-                   (#"mafia\s+ping" (fn [_]
-                                      (m/create-message! (:messaging @state) channel-id
-                                                         :content "Join game"))))
+                   (#"mafia" #'invalid-mafia-command))
       :night (command-fns event-data prefix content
-               (#"mafia\s+ping" (fn [_]
-                                  (m/create-message! (:messaging @state) channel-id
-                                                     :content "Night"))))
+               (#"mafia" #'invalid-mafia-command))
       :last-words (command-fns event-data prefix content
-                    (#"mafia\s+ping" (fn [_]
-                                       (m/create-message! (:messaging @state) channel-id
-                                                          :content "Last words"))))
+                    (#"mafia" #'invalid-mafia-command))
       :nominate (command-fns event-data prefix content
-                  (#"mafia\s+ping" (fn [_]
-                                     (m/create-message! (:messaging @state) channel-id
-                                                        :content "Nominations"))))
+                  (#"mafia" #'invalid-mafia-command))
       :vote (command-fns event-data prefix content
-              (#"mafia\s+ping" (fn [_]
-                                 (m/create-message! (:messaging @state) channel-id
-                                                    :content "Vote"))))
+              (#"mafia" #'invalid-mafia-command))
       :lynching (command-fns event-data prefix content
-                  (#"mafia\s+ping" (fn [_]
-                                     (m/create-message! (:messaging @state) channel-id
-                                                        :content "Lynching"))))
-      nil)))
+                  (#"mafia" #'invalid-mafia-command))
+      nil (command-fns event-data prefix content
+            (#"mafia" #'invalid-mafia-command)))))
