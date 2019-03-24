@@ -4,7 +4,7 @@
    [alexis-texas.events :refer [add-guild-members add-member-info add-role delete-role disconnect-bot
                                 ready remove-guild remove-guild-member state update-guild
                                 update-guild-member update-role update-user]]
-   [alexis-texas.util :refer [resource]]
+   [alexis-texas.util :as util]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
    [taoensso.timbre :as log]
@@ -16,7 +16,7 @@
   (:gen-class))
 
 
-(def token (resource "token.txt"))
+(def token (util/resource "token.txt"))
 
 (defonce ^:dynamic *events* (atom nil))
 (defonce ^:dynamic *connection* (atom nil))
@@ -66,7 +66,7 @@
                    :running true})
     (a/go-loop []
       (a/<! (a/timeout 300000))
-      (spit "quotes.edn" (pr-str (:state @state)))
+      (util/save-state (:state @state))
       (when (:running @state)
         (recur)))
     (e/message-pump! events #'handle-event)))
