@@ -4,7 +4,8 @@
   (:require
    [alexis-texas.mafia :as m]
    [clojure.spec.alpha :as s]
-   [discljord.messaging :as msg]))
+   [discljord.messaging :as msg]
+   [clojure.core.async :as a]))
 
 (comment
   ;; Game state can be in any of several phases, :join-game, :night, :nominate, and :vote
@@ -85,7 +86,15 @@
       ;; TODO(Joshua): Tell the players how the night will play out, and what's going on
       )
     (msg/create-message! (:messaging @state) channel-id
-                         :content (str "And so begins night " (:day s)))))
+                         :content (str "And so begins night " (:day s)))
+    ;; TODO(Joshua): Wait until the time is up, and then check to see if the game has already
+    ;;               advanced. If not, check there are enough players, and advance the game.
+    (a/go
+      (a/<! (a/timeout (* 1000 60 5)))
+      (comment
+        (when (and (not-advanced?)
+                   (enough-players?))
+          (advance-phase state guild-id))))))
 
 (defmethod advance-phase :night
   [state guild-id]
