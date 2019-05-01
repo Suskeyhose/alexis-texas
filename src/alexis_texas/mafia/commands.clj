@@ -52,11 +52,16 @@
 
 (defn mafia-start
   [{:keys [guild-id channel-id]}]
-  (let [game-state (mafia.s/game-state state guild-id)]
+  (let [game-state (mafia.s/game-state state guild-id)
+        prefix (get-prefix state guild-id)]
     (if-not (:playing? game-state)
-      (do (m/create-message! (:messaging @state) channel-id
-                             :content (str "Starting new mafia game"))
-          (mafia.s/start-game! state guild-id channel-id))
+      (do (mafia.s/start-game! state guild-id channel-id)
+          (m/create-message! (:messaging @state) channel-id
+                             :content (str "Staring new Mafia game.\n"
+                                           "\n"
+                                           "Join the game by using the command `" prefix "mafia join`!\n"
+                                           "If you've joined and want to leave, then use `" prefix "mafia leave`.\n\n"
+                                           "The game will properly begin in TODO minutes.\n")))
       (m/create-message! (:messaging @state) channel-id
                          :content (str "A game has already been started in this guild!"
                                        " Check out <#"
