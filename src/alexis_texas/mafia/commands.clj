@@ -7,6 +7,7 @@
    [alexis-texas.mafia :as mafia]
    [alexis-texas.mafia.state :as mafia.s]
    [alexis-texas.permissions :refer [user-has-permission? admin?]]
+   [alexis-texas.state :refer [get-prefix]]
    [alexis-texas.util :refer [owner]]
    [clojure.pprint :as pprint]
    [discljord.messaging :as m]))
@@ -45,8 +46,7 @@
 (defn mafia-help
   [{:keys [guild-id channel-id author]}]
   ;; TODO: Make this state-dependant for the guild
-  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                   "!")]
+  (let [prefix (get-prefix state guild-id)]
     (m/create-message! (:messaging @state) channel-id
                        :content (mafia-help-message prefix (admin? guild-id author)))))
 
@@ -151,16 +151,14 @@
 
 (defn invalid-mafia-command
   [{:keys [channel-id guild-id]}]
-  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                   "!")]
+  (let [prefix (get-prefix state guild-id)]
     (m/create-message! (:messaging @state) channel-id
                        :content (str "Invalid command, maybe try running `"
                                      prefix "mafia help` to see what you can do."))))
 
 (defn process-state-commands
   [{:keys [channel-id guild-id content] :as event-data}]
-  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                   "!")]
+  (let [prefix (get-prefix state guild-id)]
     (case (:phase (mafia.s/game-state state guild-id))
       :join-game (command-fns event-data prefix content
                    (#"mafia\s+join" #'mafia-join)

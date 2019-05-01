@@ -8,6 +8,7 @@
    [alexis-texas.mafia.commands :as mafia.c]
    [alexis-texas.permissions :refer [user-has-permission? admin?]]
    [alexis-texas.quotes :as quotes]
+   [alexis-texas.state :refer [get-prefix]]
    [alexis-texas.util :refer [owner]]
    [clojure.pprint :refer [pprint]]
    [clojure.string :as str]
@@ -54,8 +55,7 @@
 
 (defn send-help-message
   [{:keys [channel-id guild-id author]}]
-  (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                   "!")]
+  (let [prefix (get-prefix state guild-id)]
     (m/create-message! (:messaging @state) channel-id :content (help-message prefix (admin? guild-id author)))))
 
 (defn disconnect
@@ -82,8 +82,7 @@
   [{:keys [mentions content webhook-id guild-id channel-id]
     {bot :bot :as author} :author :as event-data}]
   (when-not (or bot webhook-id)
-    (let [prefix (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-                     "!")]
+    (let [prefix (get-prefix state guild-id)]
       (command-fns event-data prefix content
         ;; debugging
         (#"ping" #'ping)
