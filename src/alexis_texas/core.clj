@@ -1,7 +1,7 @@
 (ns alexis-texas.core
   (:require
    [alexis-texas.commands :as commands]
-   [alexis-texas.events :as events]
+   [alexis-texas.events :as events :refer [state]]
    [alexis-texas.util :as util]
    [clojure.core.async :as a]
    [clojure.edn :as edn]
