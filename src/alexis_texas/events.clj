@@ -99,7 +99,7 @@
 (defn delete-role
   [{:keys [guild-id role-id]}]
   (setval [ATOM :roles (keypath guild-id) (keypath role-id)] NONE state)
-  (transform [ATOM :users ALL :guilds (keypath guild-id) :roles]
+  (transform [ATOM :users MAP-VALS :guilds (keypath guild-id) :roles]
              (partial remove #(= % role-id))
              state))
 
