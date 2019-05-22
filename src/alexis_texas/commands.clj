@@ -93,11 +93,11 @@
   (a/thread
     (when (admin? guild-id author)
       (log/debug "Arguments to prune-list: guild-id " guild-id
-                 " prune duration " (select-one [ATOM :guilds (keypath guild-id)
+                 " prune duration " (select-one [ATOM :state (keypath guild-id)
                                                  :prune-duration (nil->val 90)]
                                                 state))
       (let [prune-list-results (prune-list @state guild-id
-                                           (select-one [ATOM :guilds (keypath guild-id)
+                                           (select-one [ATOM :state (keypath guild-id)
                                                         :prune-duration (nil->val 90)]
                                                        state))
             user-lines (map #(let [user (select-one [ATOM :users (keypath %)] state)
@@ -125,9 +125,17 @@
 
 (defn set-prune-duration
   [{:keys [guild-id channel-id]} duration]
-  (setval [ATOM :guilds (keypath guild-id) :prune-duration] (Long/parseLong duration) state)
+  (setval [ATOM :state (keypath guild-id) :prune-duration] (Long/parseLong duration) state)
   (m/create-message! (:messaging @state) channel-id
                      :content (str "Setting the prune duration to " duration " days!")))
+
+(defn display-prune-duration
+  [{:keys [guild-id channel-id]}]
+  (m/create-message! (:messaging @state) channel-id
+                     :content (str "The prune duration is currently: "
+                                   (select-first [ATOM :state (keypath guild-id) :prune-duration (nil->val 90)]
+                                                 state)
+                                   " days.")))
 
 (defn process-message
   [{:keys [mentions content webhook-id guild-id channel-id]
@@ -163,6 +171,7 @@
         (#"blacklist\s+clear" #'blacklist/clear-blacklist)
         (#"prune\s+list" #'get-prune-list)
         (#"prune\s+duration\s+(\d+)" #'set-prune-duration)
+        (#"prune\s+duration" #'display-prune-duration)
 
         ;; general
         (#"help" #'send-help-message)
