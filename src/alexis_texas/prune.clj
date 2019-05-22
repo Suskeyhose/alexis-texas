@@ -21,7 +21,12 @@
         users (sequence (comp (filter #((:guilds (second %)) guild-id))
                               (filter #(not= (first %) (:bot-id state)))
                               (remove #(:bot (second %)))
-                              (remove #(.isAfter ^Instant (:joined-at (second %))
+                              (remove #(.isAfter ^Instant
+                                                 (Instant/from
+                                                  (.parse DateTimeFormatter/ISO_OFFSET_DATE_TIME
+                                                          (select-one [LAST :guilds
+                                                                       (keypath guild-id) :joined-at]
+                                                                      %)))
                                                  after-instant))
                               (map first))
                         (:users state))
