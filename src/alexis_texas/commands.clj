@@ -149,11 +149,11 @@
 
         ;; mafia commands
         (#"mafia\s+help" #'mafia.c/mafia-help)
-        (#"mafia\s+start" #'mafia.c/mafia-start)
-        (#"mafia\s+phase\s+next" #'mafia.c/mafia-phase-next)
-        (#"mafia\s+phase\s+current" #'mafia.c/mafia-phase-current)
-        (#"mafia\s+state" #'mafia.c/mafia-state)
-        (#"mafia\s+stop" #'mafia.c/mafia-stop)
+        ;; (#"mafia\s+start" #'mafia.c/mafia-start)
+        ;; (#"mafia\s+phase\s+next" #'mafia.c/mafia-phase-next)
+        ;; (#"mafia\s+phase\s+current" #'mafia.c/mafia-phase-current)
+        ;; (#"mafia\s+state" #'mafia.c/mafia-state)
+        ;; (#"mafia\s+stop" #'mafia.c/mafia-stop)
 
         ;; admin commands
         (#"prefix\s+(\S+)" #'create-new-prefix)
