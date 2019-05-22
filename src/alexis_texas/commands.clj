@@ -7,6 +7,7 @@
    [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia.commands :as mafia.c]
    [alexis-texas.permissions :refer [user-has-permission? admin?]]
+   [alexis-texas.prune :refer [prune-list]]
    [alexis-texas.quotes :as quotes]
    [alexis-texas.state :refer [get-prefix]]
    [alexis-texas.util :refer [owner]]
@@ -14,7 +15,8 @@
    [clojure.string :as str]
    [taoensso.timbre :as log]
    [discljord.connections :as c]
-   [discljord.messaging :as m]))
+   [discljord.messaging :as m]
+   [clojure.core.async :as a]))
 
 (defn help-message
   "Takes a core.async channel for communicating with the messaging process,
@@ -51,7 +53,12 @@
               "`" prefix "blacklist list` lists all the names and patterns"
               " blacklisted by this bot.\n"
               "`" prefix "blacklist clear` clears the blacklist of both names and"
-              " patterns.\n"))))
+              " patterns.\n"
+              "`" prefix "prune list` posts a ping for, the username of, and id"
+              " of each user who has not posted a message in any channel on the server in"
+              " a number of days set by `prune duration`.\n"
+              "`" prefix "prune duration <days of inactivity>` sets the number of days of"
+              " inactivity required to be included in a prune listing.\n"))))
 
 (defn send-help-message
   [{:keys [channel-id guild-id author]}]
@@ -77,6 +84,50 @@
   [{:keys [channel-id] {id :id} :author}]
   (when (= id owner)
     (m/create-message! (:messaging @state) channel-id :content "pong!")))
+
+(defn get-prune-list
+  [{:keys [guild-id channel-id author]}]
+  (log/debug "Starting a prune!")
+  (m/create-message! (:messaging @state) channel-id
+                     :content "Starting a prune listing!")
+  (a/thread
+    (when (admin? guild-id author)
+      (log/debug "Arguments to prune-list: guild-id " guild-id
+                 " prune duration " (select-one [ATOM :guilds (keypath guild-id)
+                                                 :prune-duration (nil->val 90)]
+                                                state))
+      (let [prune-list-results (prune-list @state guild-id
+                                           (select-one [ATOM :guilds (keypath guild-id)
+                                                        :prune-duration (nil->val 90)]
+                                                       state))
+            user-lines (map #(let [user (select-one [ATOM :users (keypath %)] state)
+                                   nick (str (:username user)
+                                             "#"
+                                             (:discriminator user))
+                                   ping (str "<@" % ">")]
+                               (str ping "\t\t\t**Username:** " nick "\t\t\t**User ID:** " % "\n"))
+                            prune-list-results)
+            send-list (partition-by (let [num-chars (volatile! 0)
+                                          msg-idx (volatile! 0)]
+                                      (fn [line]
+                                        (vswap! num-chars #(+ % (count line)))
+                                        (when (> @num-chars 2000)
+                                          (vswap! msg-idx inc)
+                                          (vreset! num-chars 0))
+                                        @msg-idx))
+                                    user-lines)]
+        (if (zero? (count send-list))
+          (m/create-message! (:messaging @state) channel-id
+                             :content "Nobody to prune!")
+          (doseq [msg send-list]
+            (m/create-message! (:messaging @state) channel-id
+                               :content (apply str msg))))))))
+
+(defn set-prune-duration
+  [{:keys [guild-id channel-id]} duration]
+  (setval [ATOM :guilds (keypath guild-id) :prune-duration] (Long/parseLong duration) state)
+  (m/create-message! (:messaging @state) channel-id
+                     :content (str "Setting the prune duration to " duration " days!")))
 
 (defn process-message
   [{:keys [mentions content webhook-id guild-id channel-id]
@@ -110,6 +161,8 @@
         (#"blacklist\s+add\s+([\S\s]+)" #'blacklist/add-blacklist-string)
         (#"blacklist\s+list" #'blacklist/list-blacklist)
         (#"blacklist\s+clear" #'blacklist/clear-blacklist)
+        (#"prune\s+list" #'get-prune-list)
+        (#"prune\s+duration\s+(\d+)" #'set-prune-duration)
 
         ;; general
         (#"help" #'send-help-message)
