@@ -20,6 +20,9 @@
                               ChronoUnit/DAYS)
         users (sequence (comp (filter #((:guilds (second %)) guild-id))
                               (filter #(not= (first %) (:bot-id state)))
+                              (remove #(:bot (second %)))
+                              (remove #(.isAfter ^Instant (:joined-at (second %))
+                                                 after-instant))
                               (map first))
                         (:users state))
         channels (select [:guilds (keypath guild-id) :channels ALL
@@ -55,7 +58,6 @@
                               (recur (:id last-msg)
                                      (into acc msgs))))))
                       channels)]
-    (log/debug after-instant)
     (remove
      (fn [user]
        (first (filter #(= (:id (:author %)) user)
