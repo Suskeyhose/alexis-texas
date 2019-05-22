@@ -44,7 +44,8 @@
                                                                     :limit 100)
                                         @(d.m/get-channel-messages! (:messaging state) channel-id
                                                                     :limit 100)))
-                                last-msg (nth msgs (dec (count msgs)))]
+                                last-msg (when (pos? (count msgs))
+                                           (nth msgs (dec (count msgs))))]
                             (if (or (< (count msgs) 100)
                                     (.isBefore ^Instant (:timestamp last-msg)
                                                after-instant))
