@@ -58,12 +58,13 @@
     (has-permission? perm permissions-int)))
 
 (defn user-has-permissions?
-  [user guild-id perms]
-  (every? #(user-has-permission? user guild-id %) perms))
+  [user-id guild-id perms]
+  (every? #(user-has-permission? user-id guild-id %) perms))
 
 (defn role-has-permission?
   [role-id guild-id perm]
-  )
+  (let [role-permissions (select [ATOM :roles (keypath guild-id) (keypath role-id) :permissions] state)]
+    (has-permission? perm role-permissions)))
 
 (defn role-has-permissions?
   [role-id guild-id perms]
