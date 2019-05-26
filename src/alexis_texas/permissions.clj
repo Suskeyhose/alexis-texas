@@ -46,15 +46,15 @@
   (every? #(has-permission? % perms-int) perms))
 
 (defn user-has-permission?
-  [user guild-id perm]
-  (let [user-roles (conj (:roles (get (:guilds (get (:users @state) user)) guild-id))
+  [user-id guild-id perm]
+  (let [user-roles (conj (select [ATOM :users (keypath user-id) :guilds (keypath guild-id) :roles ALL] state)
                          guild-id)
-        roles-permissions (map (fn [[_ {:keys [permissions]}]]
-                                 permissions)
-                               (select-keys (get (:roles @state) guild-id) user-roles))
-        permissions-int (if (> (count roles-permissions) 1)
-                          (apply bit-or roles-permissions)
-                          (first roles-permissions))]
+        roles-permissions (select [ATOM :roles (keypath guild-id)
+                                   (submap user-roles)
+                                   MAP-VALS
+                                   :permissions]
+                                  state)
+        permissions-int (apply bit-or 0x0 0x0 roles-permissions)]
     (has-permission? perm permissions-int)))
 
 (defn user-has-permissions?
