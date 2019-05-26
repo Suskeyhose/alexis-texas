@@ -63,7 +63,9 @@
 
 (defn admin?
   [guild-id user]
-  (let [id (:id user)]
+  (let [id (if (map? user)
+             (:id user)
+             user)]
     (or (= id owner)
         (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
         (user-has-permission? id guild-id :manage-guild))))
