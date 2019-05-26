@@ -61,6 +61,30 @@
   [user guild-id perms]
   (every? #(user-has-permission? user guild-id %) perms))
 
+(defn role-has-permission?
+  [role-id guild-id perm]
+  )
+
+(defn role-has-permissions?
+  [role-id guild-id perms]
+  (every? #(role-has-permission? role-id guild-id %) perms))
+
+(defn role-has-permission-for-channel?
+  [role-id guild-id channel-id perm]
+  )
+
+(defn role-has-permissions-for-channel?
+  [role-id guild-id channel-id perms]
+  (every? #(role-has-permission-for-channel? role-id guild-id channel-id %) perms))
+
+(defn user-has-permission-for-channel?
+  [user-id guild-id channel-id perm]
+  )
+
+(defn user-has-permissions-for-channel?
+  [user-id guild-id channel-id perms]
+  (every? #(user-has-permission-for-channel? user-id guild-id channel-id %) perms))
+
 (defn admin?
   [guild-id user]
   (let [id (if (map? user)
