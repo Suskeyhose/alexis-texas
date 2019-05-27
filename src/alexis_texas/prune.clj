@@ -2,6 +2,7 @@
   (:use
    com.rpl.specter)
   (:require
+   [alexis-texas.events]
    [alexis-texas.permissions :as a.p]
    [discljord.messaging :as d.m]
    [taoensso.timbre :as log]
@@ -16,7 +17,7 @@
 
 (defn- bot?
   [user-id]
-  (selected-any? [ATOM :users (keypath user-id) :bot (nil->val NONE)] state))
+  (selected-any? [ATOM :users (keypath user-id) :bot (nil->val NONE)] alexis-texas.events/state))
 
 (defn users-that-joined-after-instant
   [state guild-id after-instant]
