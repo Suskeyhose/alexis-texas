@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/core.async "0.4.490"]
-                 [com.rpl/specter "1.1.1"]
+                 [com.rpl/specter "1.1.2"]
                  [com.taoensso/timbre "4.10.0"]
                  [org.suskalo/discljord "0.2.4"]]
   :jvm-opts []

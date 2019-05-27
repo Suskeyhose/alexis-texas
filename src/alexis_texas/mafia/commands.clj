@@ -89,7 +89,7 @@
             (m/create-message!
              conn game-channel
              :content
-             (str (select-first [ATOM :users (keypath id) :username] state)
+             (str (select-one [ATOM :users (keypath id) :username] state)
                   " joined the mafia game!")))
           (m/create-message!
            conn channel-id
@@ -110,7 +110,7 @@
           (m/create-message!
            conn game-channel
            :content
-           (str (select-first [ATOM :users (keypath id) :username] state)
+           (str (select-one [ATOM :users (keypath id) :username] state)
                 " left the game!"))))
       (m/create-message!
        conn channel-id

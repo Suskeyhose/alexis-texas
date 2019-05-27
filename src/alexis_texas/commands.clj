@@ -96,7 +96,7 @@
                  " prune duration " (select-one [ATOM :state (keypath guild-id)
                                                  :prune-duration (nil->val 90)]
                                                 state))
-      (let [prune-list-results (prune-list @state guild-id
+      (let [prune-list-results (prune-list @state channel-id guild-id
                                            (select-one [ATOM :state (keypath guild-id)
                                                         :prune-duration (nil->val 90)]
                                                        state))
@@ -133,8 +133,8 @@
   [{:keys [guild-id channel-id]}]
   (m/create-message! (:messaging @state) channel-id
                      :content (str "The prune duration is currently: "
-                                   (select-first [ATOM :state (keypath guild-id) :prune-duration (nil->val 90)]
-                                                 state)
+                                   (select-one [ATOM :state (keypath guild-id) :prune-duration (nil->val 90)]
+                                               state)
                                    " days.")))
 
 (defn process-message

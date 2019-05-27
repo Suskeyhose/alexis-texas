@@ -63,7 +63,7 @@
                    (user-has-permission? id guild-id :manage-guild))]
     (when admin?
       (let [num (Long/parseLong idx)
-            item (select-first [ATOM :state (keypath guild-id) :blacklist (keypath num)] state)]
+            item (select-one [ATOM :state (keypath guild-id) :blacklist (keypath num)] state)]
         (setval [ATOM :state (keypath guild-id) :blacklist (keypath num)] NONE state)
         (m/create-message! (:messaging @state) channel-id
                            :content (str "Removing blacklist item: "
