@@ -45,25 +45,101 @@
   [perms perms-int]
   (every? #(has-permission? % perms-int) perms))
 
+(defn reducing-bit-or
+  ([] 0)
+  ([v] v)
+  ([x y] (bit-or x y)))
+
 (defn user-has-permission?
-  [user guild-id perm]
-  (let [user-roles (conj (:roles (get (:guilds (get (:users @state) user)) guild-id))
-                         guild-id)
-        roles-permissions (map (fn [[_ {:keys [permissions]}]]
-                                 permissions)
-                               (select-keys (get (:roles @state) guild-id) user-roles))
-        permissions-int (if (> (count roles-permissions) 1)
-                          (apply bit-or roles-permissions)
-                          (first roles-permissions))]
+  [user-id guild-id perm]
+  (let [state @state
+        user-roles (select [:guilds (keypath guild-id) :members (keypath user-id)
+                            :roles (view #(conj % guild-id)) ALL]
+                           state)
+        permissions-int (select-one (traversed [:guilds (keypath guild-id)
+                                                :roles (submap user-roles)
+                                                MAP-VALS :permissions]
+                                               reducing-bit-or)
+                                    state)]
     (has-permission? perm permissions-int)))
 
 (defn user-has-permissions?
-  [user guild-id perms]
-  (every? #(user-has-permission? user guild-id %) perms))
+  [user-id guild-id perms]
+  (every? #(user-has-permission? user-id guild-id %) perms))
+
+(defn role-has-permission?
+  [role-id guild-id perm]
+  (let [role-permissions (select [ATOM :guilds (keypath guild-id)
+                                  :roles (keypath role-id) :permissions]
+                                 state)]
+    (has-permission? perm role-permissions)))
+
+(defn role-has-permissions?
+  [role-id guild-id perms]
+  (every? #(role-has-permission? role-id guild-id %) perms))
+
+(defn role-has-permission-for-channel?
+  [role-id guild-id channel-id perm]
+  (let [state @state
+        role-permissions (select-one [:guilds (keypath guild-id) :roles (keypath role-id) :permissions] state)
+        [deny allow] (select [:guilds (keypath guild-id) :channels
+                              (keypath channel-id) :permission-overwrites
+                              (filterer [:id (pred= role-id)])
+                              FIRST (multi-path :deny :allow)]
+                             state)]
+    (bit-or (bit-and role-permissions
+                     (bit-not deny))
+            allow)))
+
+(defn role-has-permissions-for-channel?
+  [role-id guild-id channel-id perms]
+  (every? #(role-has-permission-for-channel? role-id guild-id channel-id %) perms))
+
+(defn user-has-permission-for-channel?
+  [user-id guild-id channel-id perm]
+  (let [state @state
+        user-roles (set (select [:guilds (keypath guild-id) :members (keypath user-id) :roles ALL] state))
+        [[everyone-deny everyone-allow]
+         [roles-deny roles-allow]
+         [user-deny user-allow]]
+        (select [:guilds (keypath guild-id) :channels
+                 (keypath channel-id) :permission-overwrites
+                 (multi-path (filterer [:id (pred= guild-id)])
+                             (filterer [(selected? [:type (pred= "role")])
+                                        :id (pred user-roles)])
+                             (filterer [(selected? [:type (pred= "member")])
+                                        :id (pred= user-id)]))
+                 (view (fn [[{:keys [deny allow]}]]
+                         [(or deny 0) (or allow 0)]))]
+                state)
+        base-perms (select-one (traversed [:guilds (keypath guild-id) :roles
+                                           (submap (conj user-roles guild-id))
+                                           MAP-VALS :permissions]
+                                          reducing-bit-or)
+                               state)
+        final-perms (bit-or
+                     (bit-and
+                      (bit-or
+                       (bit-and
+                        (bit-or
+                         (bit-and base-perms
+                                  (bit-not everyone-deny))
+                         everyone-allow)
+                        (bit-not roles-deny))
+                       roles-allow)
+                      (bit-not user-deny))
+                     user-allow)]
+    (has-permission? perm final-perms)))
+
+(defn user-has-permissions-for-channel?
+  [user-id guild-id channel-id perms]
+  (every? #(user-has-permission-for-channel? user-id guild-id channel-id %) perms))
 
 (defn admin?
   [guild-id user]
-  (let [id (:id user)]
+  (let [id (if (map? user)
+             (:id user)
+             user)]
     (or (= id owner)
         (= id (select-any [ATOM :guilds (keypath guild-id) :owner-id] state))
         (user-has-permission? id guild-id :manage-guild))))
