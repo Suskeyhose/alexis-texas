@@ -23,7 +23,7 @@
 
 (defn game-state
   [state guild-id]
-  (select-first [ATOM :state (keypath guild-id) :mafia] state))
+  (select-one [ATOM :state (keypath guild-id) :mafia] state))
 
 (defn update-game-state
   [state guild-id f]

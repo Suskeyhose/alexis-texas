@@ -32,6 +32,9 @@
    :guild-create [#'events/update-guild]
    :guild-update [#'events/update-guild]
    :guild-remove [#'events/remove-guild]
+   :channel-create [#'events/update-channel]
+   :channel-update [#'events/update-channel]
+   :channel-delete [#'events/remove-channel]
    :guild-member-add [#'events/add-member-info]
    :guild-members-chunk [#'events/add-guild-members]
    :guild-member-update [#'events/update-guild-member]
@@ -58,7 +61,6 @@
                    :events events
                    :messaging messaging
                    :state init-state
-                   :roles {}
                    :users {}
                    :guilds {}
                    :running true})

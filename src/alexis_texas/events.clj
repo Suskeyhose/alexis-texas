@@ -24,28 +24,63 @@
   (swap! state assoc :bot-id id
                      :bot-name username))
 
+(defn- cleanse-guild
+  [guild]
+  (multi-transform
+   (multi-path
+    [:channels
+     (view (partial group-by :id))
+     MAP-VALS
+     (terminal #(dissoc (first %) :id))]
+    [:roles
+     (view (partial group-by :id))
+     MAP-VALS
+     (terminal #(dissoc (first %) :id))]
+    [:members
+     (view (partial group-by (comp :id :user)))
+     MAP-VALS
+     (terminal #(dissoc (first %) :user))])
+   guild))
+
 (defn update-guild
-  [{:keys [id roles members] :as guild}]
-  (transform [ATOM :guilds (keypath id)]
-             #(merge % (dissoc guild :id :roles :members))
-             state)
-  (let [roles (into {} roles-xf roles)
-        users (into {} users-xf members)
-        members (into {} members-xf members)]
-    (doseq [[role-id role] roles]
-      (setval [ATOM :roles (keypath id) (keypath role-id)] role state))
-    (doseq [[user-id user] users]
-      (when-not (select-any [ATOM :users (keypath user-id)] state)
-        (setval [ATOM :users (keypath user-id)] user state)))
-    (doseq [[user-id member] members]
-      (setval [ATOM :users (keypath user-id) :guilds (keypath id)] member state))))
+  [{:keys [id] :as guild}]
+  (multi-transform
+   [ATOM
+    (multi-path
+     [:guilds (keypath id)
+      (terminal
+       (fn [state-guild]
+         (merge
+          state-guild
+          (cleanse-guild guild))))]
+     [:users
+      (terminal
+       (fn [users-map]
+         (merge
+          users-map
+          (select-one [:members (subselect [ALL :user])
+                       (view (partial group-by :id))
+                       (transformed MAP-VALS first)
+                       (view #(dissoc % :id))]
+                      guild))))])]
+   state))
 
 (defn remove-guild
   [{:keys [id unavailable] :as event}]
   (when-not unavailable
-    (setval [ATOM :guilds (keypath id)] NONE state)
-    (setval [ATOM :users ALL :guilds (keypath id)] NONE state)
-    (setval [ATOM :roles (keypath id)] NONE state)))
+    (setval [ATOM [:guilds (keypath id)]] NONE state)))
+
+(defn update-channel
+  [{:keys [id guild-id] :as channel}]
+  (when-not guild-id
+    (log/error "No guild id was provided when updating channel!" channel))
+  (transform [ATOM :guilds (keypath guild-id) :channels (keypath id) (nil->val {})] #(merge % channel) state))
+
+(defn remove-channel
+  [{:keys [id guild-id] :as channel}]
+  (when-not guild-id
+    (log/error "No guild id was provided when removing channel!" channel))
+  (setval [ATOM :guilds (keypath guild-id) :channels (keypath id)] NONE state))
 
 (defn add-member-info
   [{:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
@@ -64,44 +99,64 @@
                                     (prn-str blacklisted)
                                     username))
       ;; otherwise, add them to the members
-      (let [member (dissoc event :user :guild-id)]
-        (when-not (select-any [ATOM :users (keypath id)] state)
-          (setval [ATOM :users (keypath id)] (dissoc user :id) state))
-        (setval [ATOM :users (keypath id) :guilds (keypath guild-id)] member state)))))
+      (let [member (dissoc event :user :guild-id)
+            user (dissoc (:user event) :id)]
+        (multi-transform [ATOM (multi-path [:guilds (keypath guild-id) :members (keypath id)
+                                            (terminal-val member)]
+                                           [:users (keypath id) (terminal-val user)])]
+                         state)))))
 
 (defn add-guild-members
   [{:keys [guild-id members] :as event}]
-  (let [members (into {}
-                      members-xf
-                      members)]
-    (doseq [[user-id member] members]
-      (setval [ATOM :users (keypath user-id) :guilds (keypath guild-id)] member state))))
+  (multi-transform [ATOM (multi-path [:guilds (keypath guild-id) :members
+                                      (terminal
+                                       (fn [state-members]
+                                         (merge state-members
+                                                (transform [(view (partial group-by (comp :id :user)))
+                                                            MAP-VALS]
+                                                           #(dissoc (first %) :id)
+                                                           members))))]
+                                     [:users (terminal
+                                              (fn [state-users]
+                                                (merge-with
+                                                 merge
+                                                 state-users
+                                                 (transform [ALL :user
+                                                             (view (partial group-by :id))
+                                                             MAP-VALS]
+                                                            #(dissoc (first %) :id)
+                                                            members))))])]
+                   state))
 
 (defn update-guild-member
   [{:keys [guild-id roles nick] {:keys [id]} :user :as event}]
-  (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :roles] roles state)
-  (setval [ATOM :users (keypath id) :guilds (keypath guild-id) :nick] nick state))
+  (multi-transform [ATOM :guilds (keypath guild-id) :members (keypath id)
+                    (multi-path [:roles (terminal-val roles)]
+                                [:nick (terminal-val nick)])]
+                   state))
 
 (defn remove-guild-member
   [{:keys [guild-id] {:keys [id]} :user}]
-  (setval [ATOM :users (keypath id) :guilds (keypath guild-id)] NONE state))
+  (setval [ATOM :guilds (keypath guild-id) :members (keypath id)] NONE state))
 
 (defn add-role
   [{:keys [guild-id role]}]
-  (setval [ATOM :roles (keypath guild-id) (keypath (:id role))] (dissoc role :id) state))
+  (setval [ATOM :guilds (keypath guild-id) :roles (keypath (:id role))]
+          (dissoc role :id)
+          state))
 
 (defn update-role
   [{:keys [guild-id role]}]
-  (transform [ATOM :roles (keypath guild-id) (keypath (:id role))]
+  (transform [ATOM :guilds (keypath guild-id) :roles (keypath (:id role))]
              #(merge % (dissoc role :id))
              state))
 
 (defn delete-role
   [{:keys [guild-id role-id]}]
-  (setval [ATOM :roles (keypath guild-id) (keypath role-id)] NONE state)
-  (transform [ATOM :users MAP-VALS :guilds (must guild-id) :roles]
-             (partial remove #(= % role-id))
-             state))
+  (multi-transform [ATOM :guilds (keypath guild-id)
+                    (multi-path [:roles (keypath role-id) (terminal-val NONE)]
+                                [:members :roles (terminal (partial remove role-id))])]
+                   state))
 
 (defn update-user
   [{:keys [id] :as user}]

@@ -4,5 +4,4 @@
 
 (defn get-prefix
   [state guild-id]
-  (or (select-first [ATOM :state (keypath guild-id) :prefix] state)
-      "!"))
+  (select-one [ATOM :state (keypath guild-id) :prefix (nil->val "!")] state))

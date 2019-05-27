@@ -2,8 +2,11 @@
   (:use
    com.rpl.specter)
   (:require
+   [alexis-texas.events]
+   [alexis-texas.permissions :as a.p]
    [discljord.messaging :as d.m]
-   [taoensso.timbre :as log])
+   [taoensso.timbre :as log]
+   [clojure.set :as set])
   (:import
    (java.time
     Instant)
@@ -12,30 +15,53 @@
    (java.time.temporal
     ChronoUnit)))
 
+(defn- bot?
+  [user-id]
+  (selected-any? [ATOM :users (keypath user-id) :bot (nil->val NONE)] alexis-texas.events/state))
+
+(defn users-that-joined-after-instant
+  [state guild-id after-instant]
+  (select [:guilds (keypath guild-id) :members
+           (transformed [MAP-VALS :joined-at]
+                        #(Instant/from (.parse DateTimeFormatter/ISO_OFFSET_DATE_TIME %)))
+           ALL
+           (not-selected? FIRST bot?)
+           (not-selected? LAST :joined-at
+                          #(.isAfter %
+                                     after-instant))
+           FIRST]
+          state))
+
+(defn text-channel-ids
+  [state guild-id]
+  (select [:guilds (keypath guild-id) :channels ALL
+           (selected? LAST (pred (comp zero? :type)))
+           FIRST]
+          state))
+
+(defn viewable-text-channels
+  [state guild-id]
+  (let [user-id (:bot-id state)]
+    (filter #(a.p/user-has-permission-for-channel? user-id guild-id % :view-channel)
+            (text-channel-ids state guild-id))))
+
 (defn prune-list
-  [state guild-id duration]
+  [state channel-id guild-id duration]
   (log/debug "Starting a prune list!")
   (let [after-instant (.minus (Instant/now)
                               (long duration)
                               ChronoUnit/DAYS)
-        users (sequence (comp (filter #((:guilds (second %)) guild-id))
-                              (filter #(not= (first %) (:bot-id state)))
-                              (remove #(:bot (second %)))
-                              (remove #(.isAfter ^Instant
-                                                 (Instant/from
-                                                  (.parse DateTimeFormatter/ISO_OFFSET_DATE_TIME
-                                                          (select-one [LAST :guilds
-                                                                       (keypath guild-id) :joined-at]
-                                                                      %)))
-                                                 after-instant))
-                              (map first))
-                        (:users state))
-        channels (select [:guilds (keypath guild-id) :channels ALL
-                          (if-path (comp zero? :type)
-                            STAY
-                            STOP)
-                          :id]
-                         state)
+        users (users-that-joined-after-instant state guild-id after-instant)
+        all-channels (text-channel-ids state guild-id)
+        channels (viewable-text-channels state guild-id)
+        invisible-channels (set/difference (set all-channels) (set channels))
+        _ (when-not (empty? invisible-channels)
+            (d.m/create-message! (:messaging state) channel-id
+                                 :content (apply
+                                           str
+                                           "This prune may not be totally accurate, "
+                                           "because I am unable to view some channels: "
+                                           (map #(str "<#" % "> ") invisible-channels))))
         new-messages (mapcat
                       (fn [channel-id]
                         (log/debug "Getting messages for channel " channel-id)
