@@ -42,8 +42,9 @@
 (defn viewable-text-channels
   [state guild-id]
   (let [user-id (:bot-id state)]
-    (filter #(a.p/user-has-permission-for-channel? user-id guild-id % :view-channel)
-            (text-channel-ids state guild-id))))
+    (or #(a.p/user-has-permission? user-id :administrator)
+        (filter #(a.p/user-has-permission-for-channel? user-id guild-id % :view-channel)
+                (text-channel-ids state guild-id)))))
 
 (defn prune-list
   [state channel-id guild-id duration]
