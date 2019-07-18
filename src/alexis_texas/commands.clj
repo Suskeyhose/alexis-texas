@@ -139,7 +139,7 @@
 
 (defn process-message
   [{:keys [mentions content webhook-id guild-id channel-id]
-    {bot :bot :as author} :author :as event-data}]
+    {user-id :id bot :bot :as author} :author :as event-data}]
   (when-not (or bot webhook-id)
     (let [prefix (get-prefix state guild-id)]
       (command-fns event-data prefix content

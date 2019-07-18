@@ -82,29 +82,31 @@
     (log/error "No guild id was provided when removing channel!" channel))
   (setval [ATOM :guilds (keypath guild-id) :channels (keypath id)] NONE state))
 
-(defn add-member-info
+(defn ban-blacklisted-member-on-join
   [{:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
   (when-not bot
-    (if-let  [blacklisted (some #(if (instance? java.util.regex.Pattern %)
-                                   (re-find % username)
-                                   (when (str/includes? (str/lower-case username)
-                                                        (str/lower-case %))
-                                     %))
-                                (select [ATOM :guilds guild-id :blacklist ALL] state))]
+    (when-let  [blacklisted (some #(if (instance? java.util.regex.Pattern %)
+                                     (re-find % username)
+                                     (when (str/includes? (str/lower-case username)
+                                                          (str/lower-case %))
+                                       %))
+                                  (select [ATOM :guilds guild-id :blacklist ALL] state))]
       ;; if blacklisted, ban them
       (m/create-guild-ban! (:messaging @state) guild-id id
                            :reason (format
                                     (str "Alexis Texas auto-ban: had blacklisted pattern %s,"
                                          " in username \"%s\"")
                                     (prn-str blacklisted)
-                                    username))
-      ;; otherwise, add them to the members
-      (let [member (dissoc event :user :guild-id)
-            user (dissoc (:user event) :id)]
-        (multi-transform [ATOM (multi-path [:guilds (keypath guild-id) :members (keypath id)
-                                            (terminal-val member)]
-                                           [:users (keypath id) (terminal-val user)])]
-                         state)))))
+                                    username)))))
+
+(defn add-member-info
+  [{:keys [guild-id] {id :id :as user} :user :as event}]
+  (let [member (dissoc event :user :guild-id)
+        user (dissoc user :id)]
+    (multi-transform [ATOM (multi-path [:guilds (keypath guild-id) :members (keypath id)
+                                        (terminal-val member)]
+                                       [:users (keypath id) (terminal-val user)])]
+                     state)))
 
 (defn add-guild-members
   [{:keys [guild-id members] :as event}]

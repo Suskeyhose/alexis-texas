@@ -35,7 +35,7 @@
    :channel-create [#'events/update-channel]
    :channel-update [#'events/update-channel]
    :channel-delete [#'events/remove-channel]
-   :guild-member-add [#'events/add-member-info]
+   :guild-member-add [#'events/add-member-info #'events/ban-blacklisted-member-on-join]
    :guild-members-chunk [#'events/add-guild-members]
    :guild-member-update [#'events/update-guild-member]
    :guild-member-remove [#'events/remove-guild-member]
