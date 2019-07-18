@@ -72,25 +72,30 @@
                                acc []]
                           (log/debug "Most recent message: " most-recent-message)
                           (log/debug "Number of messages so far: " (count acc))
-                          (let [msgs (transform
-                                      [ALL :timestamp]
-                                      #(Instant/from (.parse DateTimeFormatter/ISO_OFFSET_DATE_TIME %))
-                                      (if most-recent-message
-                                        @(d.m/get-channel-messages! (:messaging state) channel-id
-                                                                    :before most-recent-message
-                                                                    :limit 100)
-                                        @(d.m/get-channel-messages! (:messaging state) channel-id
-                                                                    :limit 100)))
-                                last-msg (when (pos? (count msgs))
+                          (let [msgs (if most-recent-message
+                                       @(d.m/get-channel-messages! (:messaging state) channel-id
+                                                                   :before most-recent-message
+                                                                   :limit 100)
+                                       @(d.m/get-channel-messages! (:messaging state) channel-id
+                                                                   :limit 100))
+                                msgs (when (vector? msgs)
+                                       (transform
+                                        [ALL :timestamp]
+                                        #(when %
+                                           (Instant/from (.parse DateTimeFormatter/ISO_OFFSET_DATE_TIME %)))
+                                        msgs))
+                                last-msg (when (and msgs
+                                                    (pos? (count msgs)))
                                            (nth msgs (dec (count msgs))))]
-                            (if (or (< (count msgs) 100)
-                                    (.isBefore ^Instant (:timestamp last-msg)
-                                               after-instant))
-                              (into acc (take-while #(.isBefore ^Instant (:timestamp %)
-                                                                after-instant)
-                                                    msgs))
-                              (recur (:id last-msg)
-                                     (into acc msgs))))))
+                            (when msgs
+                              (if (or (< (count msgs) 100)
+                                      (.isBefore ^Instant (:timestamp last-msg)
+                                                 after-instant))
+                                (into acc (take-while #(.isBefore ^Instant (:timestamp %)
+                                                                  after-instant)
+                                                      msgs))
+                                (recur (:id last-msg)
+                                       (into acc msgs)))))))
                       channels)]
     (remove
      (fn [user]
