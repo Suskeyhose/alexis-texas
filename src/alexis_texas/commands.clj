@@ -4,6 +4,7 @@
   (:require
    [alexis-texas.blacklist :as blacklist]
    [alexis-texas.events :refer [state]]
+   [alexis-texas.introductions :as intro]
    [alexis-texas.macros :refer [command-fns]]
    [alexis-texas.mafia.commands :as mafia.c]
    [alexis-texas.permissions :refer [user-has-permission? admin?]]
@@ -58,7 +59,11 @@
               " of each user who has not posted a message in any channel on the server in"
               " a number of days set by `prune duration`.\n"
               "`" prefix "prune duration <days of inactivity>` sets the number of days of"
-              " inactivity required to be included in a prune listing.\n"))))
+              " inactivity required to be included in a prune listing.\n"
+              "\n"
+              "I also have features for handling introductions, try the following command if "
+              "you want more information about those features.\n"
+              "`" prefix "introduction help`"))))
 
 (defn send-help-message
   [{:keys [channel-id guild-id author]}]
@@ -173,12 +178,40 @@
         (#"prune\s+duration\s+(\d+)" #'set-prune-duration)
         (#"prune\s+duration" #'display-prune-duration)
 
+        ;; introduction commands
+        (#"introduction\s+channel\s+<#(\d+)>" #'intro/set-channel)
+        (#"introduction\s+channel\s+(\d+)" #'intro/set-channel)
+        (#"introduction\s+channel" #'intro/get-channel)
+        (#"introduction\s+member\s+<@&(\d+)>" #'intro/set-member-role)
+        (#"introduction\s+member\s+(\d+)" #'intro/set-member-role)
+        (#"introduction\s+member" #'intro/get-member-role)
+        (#"introduction\s+guest\s+<@&(\d+)>" #'intro/set-guest-role)
+        (#"introduction\s+guest\s+(\d+)" #'intro/set-guest-role)
+        (#"introduction\s+guest" #'intro/get-guest-role)
+        (#"introduction\s+length\s+(\d+)" #'intro/set-minimum-length)
+        (#"introduction\s+length" #'intro/get-minimum-length)
+        (#"introduction\s+pattern\s+([\s\S]+)" #'intro/add-regex-pattern)
+        (#"introduction\s+text\s+([\s\S]+)" #'intro/add-string-pattern)
+        (#"introduction\s+patterns" #'intro/list-patterns)
+        (#"introduction\s+delete\s+(\d+)" #'intro/delete-pattern)
+        (#"introduction\s+reset" #'intro/reset-state)
+        (#"introduction\s+help" (fn [{:keys [channel-id guild-id] {author-id :id} :author}]
+                                  (when (admin? guild-id author-id)
+                                    (m/create-message! (:messaging @state) channel-id
+                                                       :content (#'intro/help-message prefix)))))
+
         ;; general
         (#"help" #'send-help-message)
         :default
         (if (and (= (count mentions) 1)
                  (= (:id (first mentions)) (:bot-id @state))
-                 (re-matches #"^<@\d+>$" content))
+                 (re-matches #"^<@\d+>$" content)
+                 (not= (intro/intro-channel guild-id)
+                       channel-id))
           (m/create-message! (:messaging @state) channel-id
                              :content (help-message prefix (admin? guild-id author)))
-          (mafia.c/process-state-commands event-data))))))
+          (if (= (intro/intro-channel guild-id)
+                 channel-id)
+            (when (intro/valid-intro? guild-id content)
+              (intro/give-roles guild-id user-id))
+            (mafia.c/process-state-commands event-data)))))))
