@@ -201,7 +201,7 @@
    "I can be set up to detect introductions in a given channel and give users "
    "roles based on those introductions. The introduction has to meet a minimum "
    "length requirement and have at least one of a list of patterns match it. "
-   "If a user makes a vvalid introduction in the introductions channel, they will "
+   "If a user makes a valid introduction in the introductions channel, they will "
    "be given the member role and have the guest role removed from them.\n"
    "\n"
    "`" prefix "introduction channel [channel id or mention]` sets the channel for introductions\n"
