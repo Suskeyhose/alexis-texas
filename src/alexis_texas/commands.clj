@@ -96,37 +96,43 @@
   (m/create-message! (:messaging @state) channel-id
                      :content "Starting a prune listing!")
   (a/thread
-    (when (admin? guild-id author)
-      (log/debug "Arguments to prune-list: guild-id " guild-id
-                 " prune duration " (select-one [ATOM :state (keypath guild-id)
-                                                 :prune-duration (nil->val 90)]
-                                                state))
-      (let [prune-list-results (prune-list @state channel-id guild-id
-                                           (select-one [ATOM :state (keypath guild-id)
-                                                        :prune-duration (nil->val 90)]
-                                                       state))
-            user-lines (map #(let [user (select-one [ATOM :users (keypath %)] state)
-                                   nick (str (:username user)
-                                             "#"
-                                             (:discriminator user))
-                                   ping (str "<@" % ">")]
-                               (str ping "\t\t\t**Username:** " nick "\t\t\t**User ID:** " % "\n"))
-                            prune-list-results)
-            send-list (partition-by (let [num-chars (volatile! 0)
-                                          msg-idx (volatile! 0)]
-                                      (fn [line]
-                                        (vswap! num-chars #(+ % (count line)))
-                                        (when (> @num-chars 2000)
-                                          (vswap! msg-idx inc)
-                                          (vreset! num-chars 0))
-                                        @msg-idx))
-                                    user-lines)]
-        (if (zero? (count send-list))
-          (m/create-message! (:messaging @state) channel-id
-                             :content "Nobody to prune!")
-          (doseq [msg send-list]
+    (try
+      (when (admin? guild-id author)
+        (log/debug "Arguments to prune-list: guild-id " guild-id
+                   " prune duration " (select-one [ATOM :state (keypath guild-id)
+                                                   :prune-duration (nil->val 90)]
+                                                  state))
+        (let [prune-list-results (prune-list @state channel-id guild-id
+                                             (select-one [ATOM :state (keypath guild-id)
+                                                          :prune-duration (nil->val 90)]
+                                                         state))
+              user-lines (map #(let [user (select-one [ATOM :users (keypath %)] state)
+                                     nick (str (:username user)
+                                               "#"
+                                               (:discriminator user))
+                                     ping (str "<@" % ">")]
+                                 (str ping "\t\t\t**Username:** " nick "\t\t\t**User ID:** " % "\n"))
+                              prune-list-results)
+              send-list (partition-by (let [num-chars (volatile! 0)
+                                            msg-idx (volatile! 0)]
+                                        (fn [line]
+                                          (vswap! num-chars #(+ % (count line)))
+                                          (when (> @num-chars 2000)
+                                            (vswap! msg-idx inc)
+                                            (vreset! num-chars 0))
+                                          @msg-idx))
+                                      user-lines)]
+          (if (zero? (count send-list))
             (m/create-message! (:messaging @state) channel-id
-                               :content (apply str msg))))))))
+                               :content "Nobody to prune!")
+            (doseq [msg send-list]
+              (m/create-message! (:messaging @state) channel-id
+                                 :content (apply str msg))))))
+      (catch Exception e
+        (m/create-message! (:messaging @state) channel-id
+                           :content (str "Failed to do a prune listing. Error encountered!\n"
+                                         (.getMessage e)))
+        (log/error e)))))
 
 (defn set-prune-duration
   [{:keys [guild-id channel-id]} duration]
