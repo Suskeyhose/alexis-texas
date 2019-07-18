@@ -3,11 +3,13 @@
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.10.0"]
+  :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.clojure/core.async "0.4.490"]
                  [com.rpl/specter "1.1.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [org.suskalo/discljord "0.2.4"]]
+                 [org.suskalo/discljord "0.2.5"]
+                 [http-kit "2.4.0-alpha3"]]
+  :exclusions [http-kit]
   :jvm-opts []
   :profiles {:uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.elide-meta=[:doc :added]"
