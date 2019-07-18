@@ -97,7 +97,7 @@
   [{:keys [guild-id channel-id] {user-id :id} :author} pattern]
   (when (a.p/admin? guild-id user-id)
     (transform [ATOM :state (keypath guild-id) ::patterns NIL->VECTOR]
-               #(conj % (Pattern/compile pattern))
+               #(conj % pattern)
                state)
     (d.m/create-message! (:messaging @state) channel-id
                          :content "Adding a regex pattern.")))
@@ -107,7 +107,7 @@
   [{:keys [guild-id channel-id] {user-id :id} :author} pattern]
   (when (a.p/admin? guild-id user-id)
     (transform [ATOM :state (keypath guild-id) ::patterns NIL->VECTOR]
-               #(conj % (Pattern/compile (Pattern/quote pattern)))
+               #(conj % (Pattern/quote pattern))
                state)
     (d.m/create-message! (:messaging @state) channel-id
                          :content "Adding a string pattern.")))
@@ -182,7 +182,7 @@
         min-length (select-any [:state (keypath guild-id) ::minimum-length (nil->val 0)] state)
         patterns (select-any [:state (keypath guild-id) ::patterns NIL->VECTOR] state)]
     (boolean (and (> (count message) min-length)
-                  (some #(re-find % message) patterns)))))
+                  (some #(re-find (Pattern/compile %) message) patterns)))))
 
 (defn give-roles
   "Gives the member role and removes the guest role to the given user"
