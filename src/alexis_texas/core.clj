@@ -23,7 +23,7 @@
 (defn handler
   [& {:as handlers}]
   (fn [event-type event-data]
-    (doseq [f (event-type handlers)]
+    (doseq [f (handlers event-type)]
       (f event-data))))
 
 (def handle-event
@@ -43,7 +43,7 @@
    :guild-role-update [#'events/update-role]
    :guild-role-delete [#'events/delete-role]
    :user-update [#'events/update-user]
-   :message-create [#'commands/process-message]
+   :message-create [#'commands/process-message #'events/update-last-message]
    :disconnect [#'events/disconnect-bot]))
 
 (defn run-bot

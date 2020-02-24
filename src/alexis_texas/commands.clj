@@ -211,7 +211,7 @@
         :default
         (if (and (= (count mentions) 1)
                  (= (:id (first mentions)) (:bot-id @state))
-                 (re-matches #"^<@\d+>$" content)
+                 (re-matches #"^<@!?\d+>$" content)
                  (not= (intro/intro-channel guild-id)
                        channel-id))
           (m/create-message! (:messaging @state) channel-id

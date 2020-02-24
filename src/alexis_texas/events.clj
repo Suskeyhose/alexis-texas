@@ -72,15 +72,15 @@
 
 (defn update-channel
   [{:keys [id guild-id] :as channel}]
-  (when-not guild-id
-    (log/error "No guild id was provided when updating channel!" channel))
-  (transform [ATOM :guilds (keypath guild-id) :channels (keypath id) (nil->val {})] #(merge % channel) state))
+  (if-not guild-id
+    (transform [ATOM :dm-channels (keypath id) (nil->val {})] #(merge % channel) state)
+    (transform [ATOM :guilds (keypath guild-id) :channels (keypath id) (nil->val {})] #(merge % channel) state)))
 
 (defn remove-channel
   [{:keys [id guild-id] :as channel}]
-  (when-not guild-id
-    (log/error "No guild id was provided when removing channel!" channel))
-  (setval [ATOM :guilds (keypath guild-id) :channels (keypath id)] NONE state))
+  (if-not guild-id
+    (setval [ATOM :dm-channels (keypath id)] NONE state)
+    (setval [ATOM :guilds (keypath guild-id) :channels (keypath id)] NONE state)))
 
 (defn ban-blacklisted-member-on-join
   [{:keys [guild-id] {:keys [id bot username] :as user} :user :as event}]
@@ -163,6 +163,16 @@
 (defn update-user
   [{:keys [id] :as user}]
   (transform [ATOM :users (keypath id)] #(merge % (dissoc user :id)) state))
+
+(defn update-last-message
+  [{:keys [channel-id guild-id id] :as message}]
+  (if-not guild-id
+    (setval [ATOM :dm-channels (keypath channel-id) :last-message-id]
+            id
+            state)
+    (setval [ATOM :guilds (keypath guild-id) :channels (keypath channel-id) :last-message-id]
+            id
+            state)))
 
 (defn disconnect-bot
   [event-data]
