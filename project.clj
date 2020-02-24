@@ -7,7 +7,7 @@
                  [org.clojure/core.async "0.4.490"]
                  [com.rpl/specter "1.1.2"]
                  [com.taoensso/timbre "4.10.0"]
-                 [org.suskalo/discljord "0.2.5"]
+                 [org.suskalo/discljord "0.2.6"]
                  [http-kit "2.4.0-alpha3"]]
   :exclusions [http-kit]
   :jvm-opts []
