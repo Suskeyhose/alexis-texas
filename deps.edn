@@ -2,5 +2,6 @@
         org.clojure/core.async {:mvn/version "0.4.490"}
         com.rpl/specter {:mvn/version "1.1.1"}
         com.taoensso/timbre {:mvn/version "4.10.0"}
-        org.suskalo/discljord {:mvn/version "0.2.5"}}
- :paths ["src" "resources"]}
+        org.suskalo/discljord {:mvn/version "0.2.6"}}
+ :paths ["src" "resources"]
+ :aliases {:local/discljord {:override-deps {org.suskalo/discljord {:local/root "/home/suskeyhose/Programming/Projects/Clojure/discljord"}}}}}

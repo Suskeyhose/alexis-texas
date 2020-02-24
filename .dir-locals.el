@@ -1,1 +1,1 @@
-((nil . ((cider-clojure-cli-global-options . "-Ajava/v10"))))
+((nil . ((cider-clojure-cli-global-options . "-A:java/v10"))))
